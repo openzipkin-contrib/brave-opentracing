@@ -19,7 +19,7 @@
         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>io.openzipkin.opentracing</groupId>
+    <groupId>io.opentracing.brave</groupId>
     <artifactId>brave-opentracing</artifactId>
     <name>Zipkin OpenTracing Brave</name>
     <description>Zipkin OpenTracing Brave bridge</description>
@@ -57,7 +57,7 @@
   <distributionManagement>
     <repository>
       <id>bintray</id>
-      <url>https://api.bintray.com/maven/openzipkin/maven/brave-opentracing/;publish=1</url>
+      <url>https://api.bintray.com/maven/opentracing/maven/opentracing-brave/;publish=1</url>
     </repository>
     <snapshotRepository>
       <id>jfrog-snapshots</id>
@@ -208,7 +208,7 @@
                 <configuration>
                     <subject>opentracing</subject>
                     <repo>maven</repo>
-                    <packageName>brave-opentracing</packageName>
+                    <packageName>opentracing-brave</packageName>
                 </configuration>
             </plugin>
         </plugins>
