@@ -75,66 +75,7 @@ Code in the second process
         }
     }
 
-Code in the third process
-
-    // Map<String,String> map = request.getHeaders();
-
-    try ( Span span5 = tracer.extract(Format.Builtin.TEXT_MAP, new TextMapExtractAdapter(map))
-            .withTag("description", "the fifth inner span in the third process")
-            .start() ) {
-
-        // do something
-
-        // start another span
-        try ( Span span6 = tracer.buildSpan("span-6")
-                .asChildOf(span5)
-                .withTag("description", "the sixth inner span in the third process")
-                .start() ) {
-
-            // do something
-
-            // start another span
-            try ( Span span7 = tracer.buildSpan("span-7")
-                    .asChildOf(span6)
-                    .withTag("description", "the seventh span in the third process")
-                    .start() ) {
-
-                // do something
-
-                // cross process boundary
-                map = new HashMap<>();
-
-                tracer.inject(
-                        span7.context(),
-                        Format.Builtin.TEXT_MAP,
-                        new TextMapInjectAdapter(map));
-
-                // request.addHeaders(map);
-                // request.doGet();
-            }
-        }
-    }
-
-Code in the fourth process
-
-    // Map<String,String> map = request.getHeaders();
-
-    try ( Span span8 = tracer
-            .extract(Format.Builtin.TEXT_MAP, new TextMapExtractAdapter(map))
-            .withTag("description", "the eight inner span in the fourth process")
-            .start() ) {
-
-        // do something
-
-        // start another span
-        try ( Span span9 = tracer.buildSpan("span-9")
-                .asChildOf(span8)
-                .withTag("description", "the ninth inner span in the fouth process")
-                .start() ) {
-
-            // do something
-        }
-    }
+This code repeats from process to process, as far through the stack as required.
 
 ## Status
 
