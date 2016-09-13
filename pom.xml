@@ -20,6 +20,7 @@
     <groupId>io.opentracing.brave</groupId>
     <artifactId>brave-opentracing</artifactId>
     <name>Zipkin OpenTracing Brave</name>
+    <url>https://github.com/openzipkin/opentracing-brave</url>
     <description>Zipkin OpenTracing Brave bridge</description>
     <inceptionYear>2016</inceptionYear>
 
