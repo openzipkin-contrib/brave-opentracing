@@ -1,6 +1,6 @@
 # OpenTracing Java Bridge for Zipkin
 
-This library is a Java Bridge for the API to OpenTracing.
+This library is a Java bridge between the Brave/Zipkin API and OpenTracing. It allows its users to write portable (in the [OpenTracing](http://opentracing.io) sense) instrumentation that's translated into Brave instrumentation transparently.
 
 ## Required Reading
 
@@ -39,7 +39,7 @@ Code in the first process…
 
                 // cross process boundary
                 Map<String,String> map = new HashMap<>();
-                tracer.inject(span2.context(), Format.Builtin.TEXT_MAP, new TextMapInjectAdapter(map));
+                tracer.inject(span2.context(), Format.Builtin.HTTP_HEADERS, new TextMapInjectAdapter(map));
 
                 // request.addHeaders(map);
                 // request.doGet();
@@ -51,8 +51,8 @@ Code in the second process
 
     // Map<String,String> map = request.getHeaders();
 
-    try ( Span span3 = tracer.extract(Format.Builtin.TEXT_MAP, new TextMapExtractAdapter(map))
-            .withStartTimestamp(start +300)
+    try ( Span span3 = tracer.buildSpan("span-3")
+            .asChildOf(tracer.extract(Format.Builtin.HTTP_HEADERS, new TextMapExtractAdapter(map)))
             .withTag("description", "the third inner span in the second process")
             .start() ) {
 
@@ -68,7 +68,7 @@ Code in the second process
 
             // cross process boundary
             map = new HashMap<>();
-            tracer.inject(span4.context(), Format.Builtin.TEXT_MAP, new TextMapInjectAdapter(map));
+            tracer.inject(span4.context(), Format.Builtin.HTTP_HEADERS, new TextMapInjectAdapter(map));
 
             // request.addHeaders(map);
             // request.doGet();
