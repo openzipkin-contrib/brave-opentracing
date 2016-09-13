@@ -71,12 +71,12 @@ public final class BraveTracer extends AbstractTracer {
     }
 
     Map<String, String> getBaggage(Span span) {
-        return ((BraveSpan)span).baggage;
+        return ((BraveSpan)span).getBaggage();
     }
 
     @Override
     public <C> void inject(SpanContext spanContext, Format<C> format, C carrier) {
-        brave.clientTracer().startNewSpan(((BraveSpan)spanContext).operationName);
+        brave.clientTracer().startNewSpan(((BraveSpan)spanContext).getOperationName());
         brave.clientTracer().setClientSent();
         super.inject(spanContext, format, carrier);
         ((BraveSpan)spanContext).setClientTracer(brave.clientTracer());

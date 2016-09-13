@@ -48,18 +48,18 @@ public final class BraveSpanTest {
         BraveSpan span = BraveSpan.create(brave, operationName, parent, start, serverTracer);
 
         assert null != span.spanId;
-        assert operationName.equals(span.operationName) : "span.operationName was " + span.operationName;
+        assert operationName.equals(span.getOperationName()) : "span.operationName was " + span.getOperationName();
         assert !span.parent.isPresent();
         assert !span.serverTracer.isPresent();
-        assert span.baggage.isEmpty();
+        assert span.getBaggage().isEmpty();
 
         span.finish();
 
         assert null != span.spanId;
-        assert operationName.equals(span.operationName) : "span.operationName was " + span.operationName;
+        assert operationName.equals(span.getOperationName()) : "span.operationName was " + span.getOperationName();
         assert !span.parent.isPresent();
         assert !span.serverTracer.isPresent();
-        assert span.baggage.isEmpty();
+        assert span.getBaggage().isEmpty();
     }
 
     @Test
@@ -72,20 +72,20 @@ public final class BraveSpanTest {
         BraveSpan span = BraveSpan.create(brave, operationName, parent, start, serverTracer);
 
         assert null != span.spanId;
-        assert operationName.equals(span.operationName) : "span.operationName was " + span.operationName;
+        assert operationName.equals(span.getOperationName()) : "span.operationName was " + span.getOperationName();
         assert !span.parent.isPresent();
         assert span.serverTracer.isPresent();
         assert brave.serverTracer().equals(span.serverTracer.get());
-        assert span.baggage.isEmpty();
+        assert span.getBaggage().isEmpty();
 
         span.finish();
 
         assert null != span.spanId;
-        assert operationName.equals(span.operationName) : "span.operationName was " + span.operationName;
+        assert operationName.equals(span.getOperationName()) : "span.operationName was " + span.getOperationName();
         assert !span.parent.isPresent();
         assert span.serverTracer.isPresent();
         assert brave.serverTracer().equals(span.serverTracer.get());
-        assert span.baggage.isEmpty();
+        assert span.getBaggage().isEmpty();
     }
 
     @Test
@@ -100,20 +100,20 @@ public final class BraveSpanTest {
         BraveSpan span = BraveSpan.create(brave, operationName, parent, start, serverTracer);
 
         assert null != span.spanId;
-        assert operationName.equals(span.operationName) : "span.operationName was " + span.operationName;
+        assert operationName.equals(span.getOperationName()) : "span.operationName was " + span.getOperationName();
         assert span.parent.isPresent();
         assert span.parent.get() == parent.get();
         assert !span.serverTracer.isPresent();
-        assert span.baggage.isEmpty();
+        assert span.getBaggage().isEmpty();
 
         span.finish();
 
         assert null != span.spanId;
-        assert operationName.equals(span.operationName) : "span.operationName was " + span.operationName;
+        assert operationName.equals(span.getOperationName()) : "span.operationName was " + span.getOperationName();
         assert span.parent.isPresent();
         assert span.parent.get() == parent.get();
         assert !span.serverTracer.isPresent();
-        assert span.baggage.isEmpty();
+        assert span.getBaggage().isEmpty();
     }
 
     @Test
@@ -128,22 +128,22 @@ public final class BraveSpanTest {
         BraveSpan span = BraveSpan.create(brave, operationName, parent, start, serverTracer);
 
         assert null != span.spanId;
-        assert operationName.equals(span.operationName) : "span.operationName was " + span.operationName;
+        assert operationName.equals(span.getOperationName()) : "span.operationName was " + span.getOperationName();
         assert span.parent.isPresent();
         assert span.parent.get() == parent.get();
         assert span.serverTracer.isPresent();
         assert brave.serverTracer().equals(span.serverTracer.get());
-        assert span.baggage.isEmpty();
+        assert span.getBaggage().isEmpty();
 
         span.finish();
 
         assert null != span.spanId;
-        assert operationName.equals(span.operationName) : "span.operationName was " + span.operationName;
+        assert operationName.equals(span.getOperationName()) : "span.operationName was " + span.getOperationName();
         assert span.parent.isPresent();
         assert span.parent.get() == parent.get();
         assert span.serverTracer.isPresent();
         assert brave.serverTracer().equals(span.serverTracer.get());
-        assert span.baggage.isEmpty();
+        assert span.getBaggage().isEmpty();
     }
 
 }

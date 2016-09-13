@@ -26,7 +26,6 @@ final class BraveSpanBuilder extends AbstractSpanBuilder {
     Long traceId = null;
     Long parentSpanId = null;
     ServerTracer serverTracer = null;
-    SpanContext spanContext = null;
 
     private final Brave brave;
 
@@ -43,12 +42,12 @@ final class BraveSpanBuilder extends AbstractSpanBuilder {
     protected BraveSpan createSpan() {
         BraveSpan parent = getParent();
         if (null != parent) {
-            traceId = parent.spanId.getTraceId();
-            parentSpanId = parent.spanId.getSpanId();
+            traceId = parent.spanId.traceId;
+            parentSpanId = parent.spanId.spanId;
 
             // push this into the serverSpanState as the current span as that is where new localSpans find their parents
             brave.serverTracer()
-                    .setStateCurrentTrace(traceId, parentSpanId, parent.spanId.parentId, parent.operationName);
+                    .setStateCurrentTrace(traceId, parentSpanId, parent.spanId.nullableParentId(), parent.getOperationName());
         }
         if (null == traceId && null == parentSpanId) {
             brave.serverTracer().clearCurrentSpan();
@@ -65,18 +64,18 @@ final class BraveSpanBuilder extends AbstractSpanBuilder {
                 span.spanId.traceId,
                 span.spanId.spanId,
                 span.spanId.parentId,
-                span.operationName);
+                span.getOperationName());
 
         assert (null == traceId && null == parentSpanId) || (null != traceId && null != parentSpanId);
-        assert null == traceId || span.spanId.getTraceId() == traceId;
-        assert null == parentSpanId || parentSpanId.equals(span.spanId.getParentSpanId());
+        assert null == traceId || span.spanId.traceId == traceId;
+        assert null == parentSpanId || parentSpanId.equals(span.spanId.nullableParentId());
 
         if (null == traceId && null == parentSpanId) {
             // called through tracer.buildSpan(..), as opposed to builder.extract(..)
             brave.serverTracer().setStateCurrentTrace(
-                    span.spanId.getTraceId(),
-                    span.spanId.getSpanId(),
-                    span.spanId.getParentSpanId(),
+                    span.spanId.traceId,
+                    span.spanId.spanId,
+                    span.spanId.nullableParentId(),
                     operationName);
         }
 
