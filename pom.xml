@@ -74,17 +74,17 @@
         <dependency>
             <groupId>io.opentracing</groupId>
             <artifactId>opentracing-impl-java8</artifactId>
-            <version>0.14-SNAPSHOT</version>
+            <version>0.15.0</version>
         </dependency>
         <dependency>
             <groupId>io.zipkin.brave</groupId>
             <artifactId>brave-core</artifactId>
-            <version>3.9.1</version>
+            <version>3.11.0</version>
         </dependency>
         <dependency>
             <groupId>io.zipkin.brave</groupId>
             <artifactId>brave-http</artifactId>
-            <version>3.9.1</version>
+            <version>3.11.0</version>
         </dependency>
         <dependency>
             <groupId>junit</groupId>
