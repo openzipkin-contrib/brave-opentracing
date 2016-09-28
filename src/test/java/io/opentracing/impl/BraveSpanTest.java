@@ -41,7 +41,7 @@ public final class BraveSpanTest {
     @Test
     public void test() {
         String operationName = "test-test";
-        Optional<Span> parent = Optional.empty();
+        Optional<BraveSpanContext> parent = Optional.empty();
         Instant start = Instant.now();
         Optional<ServerTracer> serverTracer = Optional.empty();
 
@@ -65,7 +65,7 @@ public final class BraveSpanTest {
     @Test
     public void test_withServerTracer() {
         String operationName = "test-test_withServerTracer";
-        Optional<Span> parent = Optional.empty();
+        Optional<BraveSpanContext> parent = Optional.empty();
         Instant start = Instant.now();
         Optional<ServerTracer> serverTracer = Optional.of(brave.serverTracer());
 
@@ -94,7 +94,7 @@ public final class BraveSpanTest {
         Instant start = Instant.now();
         Optional<ServerTracer> serverTracer = Optional.empty();
 
-        Optional<Span> parent = Optional.of(
+        Optional<BraveSpanContext> parent = Optional.of(
                 BraveSpan.create(brave, operationName, Optional.empty(), start.minusMillis(100), serverTracer));
 
         BraveSpan span = BraveSpan.create(brave, operationName, parent, start, serverTracer);
@@ -122,7 +122,7 @@ public final class BraveSpanTest {
         Instant start = Instant.now();
         Optional<ServerTracer> serverTracer = Optional.of(brave.serverTracer());
 
-        Optional<Span> parent = Optional.of(
+        Optional<BraveSpanContext> parent = Optional.of(
                 BraveSpan.create(brave, operationName, Optional.empty(), start.minusMillis(100), serverTracer));
 
         BraveSpan span = BraveSpan.create(brave, operationName, parent, start, serverTracer);

@@ -90,9 +90,7 @@ public final class BraveTracer extends AbstractTracer {
 
         BraveSpanBuilder builder = (BraveSpanBuilder) super.extract(format, carrier);
 
-        if (null != builder.traceId
-                && null != builder.parentSpanId
-                && null != builder.operationName) {
+        if (null != builder.traceId && null != builder.parentSpanId) {
 
             brave.serverTracer().setStateCurrentTrace(
                     builder.traceId,
