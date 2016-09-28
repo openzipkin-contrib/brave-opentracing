@@ -22,7 +22,7 @@ import com.github.kristofa.brave.http.BraveHttpHeaders;
 import io.opentracing.References;
 
 
-final class BraveSpanBuilder extends AbstractSpanBuilder {
+final class BraveSpanBuilder extends AbstractSpanBuilder implements BraveSpanContext {
 
     Long traceId = null;
     Long parentSpanId = null;
@@ -41,20 +41,21 @@ final class BraveSpanBuilder extends AbstractSpanBuilder {
 
     @Override
     protected BraveSpan createSpan() {
-        BraveSpan parent = getParent();
+        BraveSpanContext parent = getParent();
         if (null != parent) {
-            traceId = parent.spanId.traceId;
-            parentSpanId = parent.spanId.spanId;
+            traceId = parent.getContextTraceId();
+            parentSpanId = parent.getContextSpanId();
+            Long parentParentId = parent.getContextParentSpanId();
 
             // push this into the serverSpanState as the current span as that is where new localSpans find their parents
-            brave.serverTracer()
-                    .setStateCurrentTrace(traceId, parentSpanId, parent.spanId.nullableParentId(), parent.getOperationName());
+            brave.serverTracer().setStateCurrentTrace(traceId, parentSpanId, parentParentId, operationName);
         }
         if (null == traceId && null == parentSpanId) {
             brave.serverTracer().clearCurrentSpan();
         }
 
-        BraveSpan span = BraveSpan.create(brave,
+        BraveSpan span = BraveSpan.create(
+                brave,
                 operationName,
                 Optional.ofNullable(parent),
                 start,
@@ -89,10 +90,10 @@ final class BraveSpanBuilder extends AbstractSpanBuilder {
     }
 
     /** @Nullable **/
-    private BraveSpan getParent() {
+    private BraveSpanContext getParent() {
         for (Reference reference : references) {
             if (References.CHILD_OF.equals(reference.getReferenceType())) {
-                return (BraveSpan) reference.getReferredTo();
+                return (BraveSpanContext) reference.getReferredTo();
             }
         }
         return null;
@@ -138,5 +139,21 @@ final class BraveSpanBuilder extends AbstractSpanBuilder {
                 break;
         }
         return this;
+    }
+
+    @Override
+    public long getContextTraceId() {
+        return traceId;
+    }
+
+    @Override
+    public long getContextSpanId() {
+        return parentSpanId;
+    }
+
+    /** null **/
+    @Override
+    public Long getContextParentSpanId() {
+        return null;
     }
 }

@@ -16,11 +16,14 @@ package io.opentracing.impl;
 import com.github.kristofa.brave.IdConversion;
 import com.github.kristofa.brave.ServerTracer;
 import com.github.kristofa.brave.http.BraveHttpHeaders;
+import io.opentracing.NoopSpanContext;
 import io.opentracing.Span;
+import io.opentracing.SpanContext;
 import io.opentracing.propagation.Format;
 import io.opentracing.propagation.TextMapExtractAdapter;
 import io.opentracing.propagation.TextMapInjectAdapter;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -236,7 +239,7 @@ public final class BraveTracerTest {
         String operationName = "test-testGetTraceState";
         BraveTracer tracer = new BraveTracer();
 
-        Optional<Span> parent = Optional.empty();
+        Optional<BraveSpanContext> parent = Optional.empty();
         Instant start = Instant.now();
         Optional<ServerTracer> serverTracer = Optional.empty();
 
@@ -319,6 +322,35 @@ public final class BraveTracerTest {
 
         assert 291 == builder.traceId : builder.traceId;
         assert 564 == builder.parentSpanId : builder.parentSpanId;
+    }
+
+    @Test
+    public void testExtractAsParent() throws Exception {
+        Map<String,String> map = new HashMap<String,String>() {{
+            put(BraveHttpHeaders.Sampled.getName(), "1");
+            put(BraveHttpHeaders.TraceId.getName(), "123");
+            put(BraveHttpHeaders.SpanId.getName(), "234");
+        }};
+        TextMapExtractAdapter adapter = new TextMapExtractAdapter(map);
+        BraveTracer tracer = new BraveTracer();
+        SpanContext parent = tracer.extract(Format.Builtin.TEXT_MAP, adapter);
+        BraveSpan span = (BraveSpan) tracer.buildSpan("child").asChildOf(parent).start();
+        assert 291 == span.getContextTraceId() : span.getContextTraceId();
+        assert 0 != span.getContextSpanId(): span.getContextSpanId();
+        assert 564 == span.getContextParentSpanId() : span.getContextParentSpanId();
+    }
+
+    @Test
+    public void testExtractOfNoParent() throws Exception {
+        TextMapExtractAdapter adapter = new TextMapExtractAdapter(Collections.emptyMap());
+        BraveTracer tracer = new BraveTracer();
+        NoopSpanContext parent = (NoopSpanContext)tracer.extract(Format.Builtin.TEXT_MAP, adapter);
+
+        assert NoopSpanContext.class.isAssignableFrom(parent.getClass())
+                : "Expecting NoopSpanContext: " + parent.getClass();
+
+        Span child = tracer.buildSpan("child").asChildOf(parent).start();
+        assert NoopSpan.class.isAssignableFrom(child.getClass()) : "Expecting NoopSpan: " + child.getClass();
     }
 
     @Test
