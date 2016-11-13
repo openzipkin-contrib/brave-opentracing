@@ -11,7 +11,7 @@
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
-package io.opentracing;
+package io.opentracing.impl;
 
 import java.util.Map;
 
@@ -19,6 +19,9 @@ import com.github.kristofa.brave.Brave;
 import com.github.kristofa.brave.IdConversion;
 import com.github.kristofa.brave.SpanId;
 import com.github.kristofa.brave.http.BraveHttpHeaders;
+import io.opentracing.NoopSpanBuilder;
+import io.opentracing.Span;
+import io.opentracing.SpanContext;
 
 import io.opentracing.propagation.Format;
 import java.util.HashMap;

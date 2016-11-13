@@ -53,14 +53,6 @@
     <tag>HEAD</tag>
   </scm>
 
-  <developers>
-    <developer>
-      <id>mck</id>
-      <name>Mick Semb Wever</name>
-      <email>mick@semb.wever.org</email>
-    </developer>
-  </developers>
-
   <distributionManagement>
     <repository>
       <id>bintray</id>
@@ -80,18 +72,18 @@
     <dependencies>
         <dependency>
             <groupId>io.opentracing</groupId>
-            <artifactId>opentracing-impl-java8</artifactId>
-            <version>0.15.0</version>
+            <artifactId>opentracing-impl</artifactId>
+            <version>0.17-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>io.zipkin.brave</groupId>
             <artifactId>brave-core</artifactId>
-            <version>3.11.0</version>
+            <version>3.15.1</version>
         </dependency>
         <dependency>
             <groupId>io.zipkin.brave</groupId>
             <artifactId>brave-http</artifactId>
-            <version>3.11.0</version>
+            <version>3.15.1</version>
         </dependency>
         <dependency>
             <groupId>junit</groupId>

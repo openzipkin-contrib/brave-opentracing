@@ -11,18 +11,18 @@
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
-package io.opentracing;
+package io.opentracing.impl;
 
 import com.github.kristofa.brave.Brave;
 import com.github.kristofa.brave.Sampler;
 import com.github.kristofa.brave.SpanCollector;
 import com.github.kristofa.brave.http.BraveHttpHeaders;
+import io.opentracing.Span;
 import java.time.Instant;
 import java.util.Optional;
 import org.junit.Before;
 import org.junit.Test;
 
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mock;
 
 

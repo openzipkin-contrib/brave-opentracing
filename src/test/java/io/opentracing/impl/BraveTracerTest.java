@@ -11,11 +11,12 @@
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
-package io.opentracing;
+package io.opentracing.impl;
 
 import com.github.kristofa.brave.IdConversion;
 import com.github.kristofa.brave.ServerTracer;
 import com.github.kristofa.brave.http.BraveHttpHeaders;
+import io.opentracing.Span;
 import io.opentracing.propagation.Format;
 import io.opentracing.propagation.TextMapExtractAdapter;
 import io.opentracing.propagation.TextMapInjectAdapter;

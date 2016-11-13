@@ -11,7 +11,7 @@
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
-package io.opentracing;
+package io.opentracing.impl;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -21,6 +21,7 @@ import com.github.kristofa.brave.Brave;
 import com.github.kristofa.brave.ClientTracer;
 import com.github.kristofa.brave.ServerTracer;
 import com.github.kristofa.brave.SpanId;
+import io.opentracing.Span;
 
 
 final class BraveSpan extends AbstractSpan {
