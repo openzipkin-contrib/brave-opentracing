@@ -53,6 +53,14 @@
     <tag>HEAD</tag>
   </scm>
 
+  <developers>
+    <developer>
+      <id>mck</id>
+      <name>Mick Semb Wever</name>
+      <email>mick@semb.wever.org</email>
+    </developer>
+  </developers>
+
   <distributionManagement>
     <repository>
       <id>bintray</id>
