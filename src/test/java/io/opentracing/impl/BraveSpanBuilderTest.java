@@ -16,20 +16,18 @@ package io.opentracing.impl;
 import com.github.kristofa.brave.Brave;
 import com.github.kristofa.brave.Sampler;
 import com.github.kristofa.brave.SpanCollector;
-import com.github.kristofa.brave.http.BraveHttpHeaders;
-import io.opentracing.Span;
-import java.time.Instant;
-import java.util.Optional;
+import com.github.kristofa.brave.SpanId;
 import org.junit.Before;
 import org.junit.Test;
 
+import static java.util.Collections.emptyMap;
 import static org.mockito.Mockito.mock;
-
 
 public final class BraveSpanBuilderTest {
 
     private SpanCollector mockSpanCollector;
     private Brave brave;
+    private BraveTracer tracer;
 
     @Before
     public void setup() {
@@ -37,19 +35,23 @@ public final class BraveSpanBuilderTest {
         // -1062731775 = 192.168.0.1
         final Brave.Builder builder = new Brave.Builder(-1062731775, 8080, "unknown");
         brave = builder.spanCollector(mockSpanCollector).traceSampler(Sampler.create(1)).build();
+        tracer = new BraveTracer();
     }
 
     @Test
     public void testCreateSpan() {
         String operationName = "test-testCreateSpan";
         brave.serverTracer().clearCurrentSpan();
-        BraveSpanBuilder builder = BraveSpanBuilder.create(brave, operationName);
+        BraveSpanBuilder builder = BraveSpanBuilder.create(brave, operationName, tracer);
         BraveSpan span = builder.createSpan();
+        
+        // TODO can we do something about these casts? so that we don't need to cast?
+        BraveSpanContext context = (BraveSpanContext) span.context();
 
-        assert null != span.spanId;
-        assert 0 != span.spanId.spanId : span.spanId.spanId;
-        assert 0 != span.spanId.traceId : span.spanId.traceId;
-        assert null == span.spanId.nullableParentId() : span.spanId.nullableParentId();
+        assert context.braveSpanId != null;
+        assert 0 != context.braveSpanId.spanId : context.braveSpanId.spanId;
+        assert 0 != context.braveSpanId.traceId : context.braveSpanId.traceId;
+        assert null == context.braveSpanId.nullableParentId() : context.braveSpanId.nullableParentId();
         assert operationName.equals(span.getOperationName()) : "span.getOperationName was " + span.getOperationName();
         assert !span.parent.isPresent();
         assert !span.serverTracer.isPresent();
@@ -62,15 +64,16 @@ public final class BraveSpanBuilderTest {
         brave.serverTracer().clearCurrentSpan();
 
         BraveSpanBuilder builder = BraveSpanBuilder
-                .create(brave, operationName)
+                .create(brave, operationName, tracer)
                 .withServerTracer(brave.serverTracer());
 
         BraveSpan span = builder.createSpan();
+        BraveSpanContext context = (BraveSpanContext) span.context();
 
-        assert null != span.spanId;
-        assert 0 != span.spanId.spanId : span.spanId.spanId;
-        assert 0 != span.spanId.traceId : span.spanId.traceId;
-        assert null == span.spanId.nullableParentId() : span.spanId.nullableParentId();
+        assert context.braveSpanId != null;
+        assert 0 != context.braveSpanId.spanId : context.braveSpanId.spanId;
+        assert 0 != context.braveSpanId.traceId : context.braveSpanId.traceId;
+        assert null == context.braveSpanId.nullableParentId() : context.braveSpanId.nullableParentId();
         assert operationName.equals(span.getOperationName()) : "span.getOperationName was " + span.getOperationName();
         assert !span.parent.isPresent();
         assert span.serverTracer.isPresent();
@@ -79,35 +82,28 @@ public final class BraveSpanBuilderTest {
     }
 
     @Test
-    public void testWithServerTracer_withParent() {
-        String operationName = "test-testWithServerTracer_withParent";
-        Instant start = Instant.now();
+    public void testWithServerTracer_withParentSpanContext() {
+        String operationName = "test-testWithServerTracer_withParentSpanContext";
         brave.serverTracer().clearCurrentSpan();
 
-        BraveSpan parent = BraveSpan.create(
-                brave,
-                operationName + "-parent",
-                Optional.empty(),
-                start.minusMillis(100),
-                Optional.of(brave.serverTracer()));
+        SpanId parentSpanId = SpanId.builder().spanId(1).traceId(3).build();
+        BraveSpanContext parent = new BraveSpanContext(parentSpanId, emptyMap(), tracer); 
 
-        brave.serverTracer().setStateCurrentTrace(
-                parent.spanId.traceId,
-                parent.spanId.spanId,
-                null,
-                parent.getOperationName());
+        brave.serverTracer().setStateCurrentTrace(parentSpanId, "parent-op-name");
 
         BraveSpanBuilder builder = (BraveSpanBuilder) BraveSpanBuilder
-                .create(brave, operationName)
+                .create(brave, operationName, tracer)
                 .withServerTracer(brave.serverTracer())
-                .asChildOf((Span)parent);
+                .asChildOf(parent);
 
         BraveSpan span = builder.createSpan();
 
-        assert null != span.spanId;
-        assert 0 != span.spanId.spanId : span.spanId.spanId;
-        assert 0 != span.spanId.traceId : span.spanId.traceId;
-        assert null != span.spanId.nullableParentId() : span.spanId.nullableParentId();
+        BraveSpanContext context = (BraveSpanContext) span.context();
+
+        assert context.braveSpanId != null;
+        assert 0 != context.braveSpanId.spanId : context.braveSpanId.spanId;
+        assert context.braveSpanId.traceId == 3;
+        assert context.braveSpanId.nullableParentId() == 1;
         assert operationName.equals(span.getOperationName()) : "span.operationName was " + span.getOperationName();
         assert span.parent.isPresent();
         assert parent.equals(span.parent.get());
@@ -115,48 +111,37 @@ public final class BraveSpanBuilderTest {
         assert brave.serverTracer().equals(span.serverTracer.get());
         assert span.getBaggage().isEmpty();
     }
-
+    
     @Test
-    public void testIsTraceState() {
-        String operationName = "test-testCreateSpan";
-        BraveSpanBuilder builder = BraveSpanBuilder.create(brave, operationName);
-
-        for (BraveHttpHeaders header : BraveHttpHeaders.values()) {
-            assert builder.isTraceState(header.getName(), "any-value")
-                    : header.getName() + " should be a trace state key";
-        }
-
-        assert !builder.isTraceState("not-a-zipkin-header", "any-value");
-    }
-
-    @Test
-    public void testWithStateItem() {
-        String operationName = "test-testWithStateItem";
+    public void testWithServerTracer_withParentSpan() {
+        String operationName = "test-testWithServerTracer_withParentSpan";
         brave.serverTracer().clearCurrentSpan();
 
-        BraveSpanBuilder builder = BraveSpanBuilder
-                .create(brave, operationName)
-                .withServerTracer(brave.serverTracer())
-                .withStateItem(BraveHttpHeaders.TraceId.getName(), "123")
-                .withStateItem(BraveHttpHeaders.SpanId.getName(), "234");
+        BraveSpan parentSpan = BraveSpanBuilder.create(brave, "parent-op-name", tracer)
+            .withServerTracer(brave.serverTracer())
+            .createSpan();
+        
+        BraveSpanContext parentContext = (BraveSpanContext) parentSpan.context();
 
-        brave.serverTracer().setStateCurrentTrace(
-                builder.traceId,
-                builder.parentSpanId,
-                null,
-                builder.operationName);
+
+        BraveSpanBuilder builder = (BraveSpanBuilder) BraveSpanBuilder
+                .create(brave, operationName, tracer)
+                .withServerTracer(brave.serverTracer())
+                .asChildOf(parentSpan);
 
         BraveSpan span = builder.createSpan();
 
-        assert null != span.spanId;
-        assert 0 != span.spanId.spanId : span.spanId.spanId;
-        assert 291 == span.spanId.traceId : span.spanId.traceId;
-        assert 564 == span.spanId.nullableParentId() : span.spanId.nullableParentId();
-        assert operationName.equals(span.getOperationName()) :  span.getOperationName();
-        assert !span.parent.isPresent();
+        BraveSpanContext context = (BraveSpanContext) span.context();
+
+        assert context.braveSpanId != null;
+        assert 0 != context.braveSpanId.spanId : context.braveSpanId.spanId;
+        assert context.getContextTraceId() == parentContext.getContextTraceId() : context.braveSpanId.traceId;
+        assert context.braveSpanId.nullableParentId().equals(parentContext.getContextSpanId());
+        assert operationName.equals(span.getOperationName()) : "span.operationName was " + span.getOperationName();
+        assert span.parent.isPresent();
+        assert parentContext.equals(span.parent.get());
         assert span.serverTracer.isPresent();
         assert brave.serverTracer().equals(span.serverTracer.get());
         assert span.getBaggage().isEmpty();
     }
-
 }

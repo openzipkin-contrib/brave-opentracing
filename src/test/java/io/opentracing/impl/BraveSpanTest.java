@@ -13,16 +13,14 @@
  */
 package io.opentracing.impl;
 
-import com.github.kristofa.brave.Brave;
-import com.github.kristofa.brave.Sampler;
-import com.github.kristofa.brave.ServerTracer;
-import com.github.kristofa.brave.SpanCollector;
-import io.opentracing.Span;
-import java.time.Instant;
-import java.util.Optional;
+import com.github.kristofa.brave.*;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.time.Instant;
+import java.util.Optional;
+
+import static java.util.Collections.emptyMap;
 import static org.mockito.Mockito.mock;
 
 public final class BraveSpanTest {
@@ -45,9 +43,10 @@ public final class BraveSpanTest {
         Instant start = Instant.now();
         Optional<ServerTracer> serverTracer = Optional.empty();
 
-        BraveSpan span = BraveSpan.create(brave, operationName, parent, start, serverTracer);
-
-        assert null != span.spanId;
+        BraveSpanContext originalContext = new BraveSpanContext(SpanId.builder().traceId(3).spanId(5).build(), emptyMap(), null);
+        BraveSpan span = BraveSpan.create(brave, operationName, originalContext, parent, start, serverTracer);
+        BraveSpanContext context = (BraveSpanContext) span.context();
+        assert context.getContextSpanId() == 5;
         assert operationName.equals(span.getOperationName()) : "span.operationName was " + span.getOperationName();
         assert !span.parent.isPresent();
         assert !span.serverTracer.isPresent();
@@ -55,7 +54,7 @@ public final class BraveSpanTest {
 
         span.finish();
 
-        assert null != span.spanId;
+        assert context.getContextSpanId() == 5;
         assert operationName.equals(span.getOperationName()) : "span.operationName was " + span.getOperationName();
         assert !span.parent.isPresent();
         assert !span.serverTracer.isPresent();
@@ -69,9 +68,11 @@ public final class BraveSpanTest {
         Instant start = Instant.now();
         Optional<ServerTracer> serverTracer = Optional.of(brave.serverTracer());
 
-        BraveSpan span = BraveSpan.create(brave, operationName, parent, start, serverTracer);
+        BraveSpanContext originalContext = new BraveSpanContext(SpanId.builder().traceId(3).spanId(5).build(), emptyMap(), null);
+        BraveSpan span = BraveSpan.create(brave, operationName, originalContext, parent, start, serverTracer);
+        BraveSpanContext context = (BraveSpanContext) span.context();
 
-        assert null != span.spanId;
+        assert context.getContextSpanId() == 5;
         assert operationName.equals(span.getOperationName()) : "span.operationName was " + span.getOperationName();
         assert !span.parent.isPresent();
         assert span.serverTracer.isPresent();
@@ -80,7 +81,7 @@ public final class BraveSpanTest {
 
         span.finish();
 
-        assert null != span.spanId;
+        assert context.getContextSpanId() == 5;
         assert operationName.equals(span.getOperationName()) : "span.operationName was " + span.getOperationName();
         assert !span.parent.isPresent();
         assert span.serverTracer.isPresent();
@@ -95,11 +96,13 @@ public final class BraveSpanTest {
         Optional<ServerTracer> serverTracer = Optional.empty();
 
         Optional<BraveSpanContext> parent = Optional.of(
-                BraveSpan.create(brave, operationName, Optional.empty(), start.minusMillis(100), serverTracer));
+                new BraveSpanContext(SpanId.builder().traceId(3).spanId(1).build(), emptyMap(), null));
+        
+        BraveSpanContext originalContext = new BraveSpanContext(SpanId.builder().traceId(3).spanId(5).build(), emptyMap(), null);
+        BraveSpan span = BraveSpan.create(brave, operationName, originalContext, parent, start, serverTracer);
+        BraveSpanContext context = (BraveSpanContext) span.context();
 
-        BraveSpan span = BraveSpan.create(brave, operationName, parent, start, serverTracer);
-
-        assert null != span.spanId;
+        assert context.getContextSpanId() == 5;
         assert operationName.equals(span.getOperationName()) : "span.operationName was " + span.getOperationName();
         assert span.parent.isPresent();
         assert span.parent.get() == parent.get();
@@ -108,7 +111,7 @@ public final class BraveSpanTest {
 
         span.finish();
 
-        assert null != span.spanId;
+        assert context.getContextSpanId() == 5;
         assert operationName.equals(span.getOperationName()) : "span.operationName was " + span.getOperationName();
         assert span.parent.isPresent();
         assert span.parent.get() == parent.get();
@@ -123,11 +126,14 @@ public final class BraveSpanTest {
         Optional<ServerTracer> serverTracer = Optional.of(brave.serverTracer());
 
         Optional<BraveSpanContext> parent = Optional.of(
-                BraveSpan.create(brave, operationName, Optional.empty(), start.minusMillis(100), serverTracer));
+                new BraveSpanContext(SpanId.builder().traceId(3).spanId(1).build(), emptyMap(), null)
+                    .withServerTracer(serverTracer.get()));
+        
+        BraveSpanContext originalContext = new BraveSpanContext(SpanId.builder().traceId(3).spanId(5).build(), emptyMap(), null);
+        BraveSpan span = BraveSpan.create(brave, operationName, originalContext, parent, start, serverTracer);
+        BraveSpanContext context = (BraveSpanContext) span.context();
 
-        BraveSpan span = BraveSpan.create(brave, operationName, parent, start, serverTracer);
-
-        assert null != span.spanId;
+        assert context.getContextSpanId() == 5;
         assert operationName.equals(span.getOperationName()) : "span.operationName was " + span.getOperationName();
         assert span.parent.isPresent();
         assert span.parent.get() == parent.get();
@@ -137,7 +143,7 @@ public final class BraveSpanTest {
 
         span.finish();
 
-        assert null != span.spanId;
+        assert context.getContextSpanId() == 5;
         assert operationName.equals(span.getOperationName()) : "span.operationName was " + span.getOperationName();
         assert span.parent.isPresent();
         assert span.parent.get() == parent.get();
