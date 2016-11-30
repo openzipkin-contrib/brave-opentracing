@@ -13,19 +13,16 @@
  */
 package io.opentracing.impl;
 
-import java.time.Instant;
-import java.util.Optional;
-import java.util.concurrent.TimeUnit;
-
 import com.github.kristofa.brave.Brave;
 import com.github.kristofa.brave.ClientTracer;
 import com.github.kristofa.brave.ServerTracer;
 import com.github.kristofa.brave.SpanId;
-import io.opentracing.Span;
 
+import java.time.Instant;
+import java.util.Optional;
 
-final class BraveSpan extends AbstractSpan implements BraveSpanContext {
-
+final class BraveSpan extends AbstractSpan {
+    // TODO spanId is redundant - already included in BraveSpanContext. Remove it? Only tests use it.
     final SpanId spanId;
     final Optional<BraveSpanContext> parent;
     final Optional<ServerTracer> serverTracer;
@@ -34,33 +31,31 @@ final class BraveSpan extends AbstractSpan implements BraveSpanContext {
     private Optional<ClientTracer> clientTracer = Optional.empty();
 
     public static BraveSpan create(
-            Brave brave,
+            Brave brave, // TODO move Brave reference to the Tracer maybe?
             String operationName,
+            BraveSpanContext spanContext,
             Optional<BraveSpanContext> parent,
             Instant start,
             Optional<ServerTracer> serverTracer) {
 
-        return new BraveSpan(brave, operationName, parent, start, serverTracer);
+        return new BraveSpan(brave, operationName, spanContext, parent, start, serverTracer);
     }
-
-    private BraveSpan(
+    
+    BraveSpan(
             Brave brave,
             String operationName,
+            BraveSpanContext spanContext,
             Optional<BraveSpanContext> parent,
             Instant start,
             Optional<ServerTracer> serverTracer) {
 
-        super(operationName, start);
+        super(operationName, start, spanContext);
         this.brave = brave;
         this.parent = parent;
         this.serverTracer = serverTracer;
-
-        this.spanId = brave.localTracer().startNewSpan(
-                "jvm",
-                operationName,
-                TimeUnit.SECONDS.toMicros(start.getEpochSecond()) + TimeUnit.NANOSECONDS.toMicros(start.getNano()));
+        this.spanId = spanContext.braveSpanId;
     }
-
+    
     @Override
     public void finish() {
         super.finish();
@@ -75,20 +70,5 @@ final class BraveSpan extends AbstractSpan implements BraveSpanContext {
 
     void setClientTracer(ClientTracer clientTracer) {
         this.clientTracer = Optional.of(clientTracer);
-    }
-
-    @Override
-    public long getContextTraceId() {
-        return spanId.traceId;
-    }
-
-    @Override
-    public long getContextSpanId() {
-        return spanId.spanId;
-    }
-
-    @Override
-    public Long getContextParentSpanId() {
-        return spanId.parentId;
     }
 }

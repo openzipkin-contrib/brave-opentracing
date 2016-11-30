@@ -13,73 +13,75 @@
  */
 package io.opentracing.impl;
 
-import java.util.Optional;
-
 import com.github.kristofa.brave.Brave;
-import com.github.kristofa.brave.IdConversion;
 import com.github.kristofa.brave.ServerTracer;
-import com.github.kristofa.brave.http.BraveHttpHeaders;
+import com.github.kristofa.brave.SpanId;
 import io.opentracing.References;
 
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
-final class BraveSpanBuilder extends AbstractSpanBuilder implements BraveSpanContext {
 
-    Long traceId = null;
-    Long parentSpanId = null;
-    ServerTracer serverTracer = null;
+final class BraveSpanBuilder extends AbstractSpanBuilder {
+    ServerTracer serverTracer;
+    BraveTracer tracer;
 
     private final Brave brave;
 
-    static BraveSpanBuilder create(Brave brave, String operationName) {
-        return new BraveSpanBuilder(brave, operationName);
+    static BraveSpanBuilder create(Brave brave, String operationName, BraveTracer tracer) {
+        return new BraveSpanBuilder(brave, operationName, tracer);
     }
 
-    private BraveSpanBuilder(Brave brave, String operationName) {
+    private BraveSpanBuilder(Brave brave, String operationName, BraveTracer tracer) {
         super(operationName);
         this.brave = brave;
+        this.tracer = tracer;
     }
 
     @Override
     protected BraveSpan createSpan() {
+        // TODO should it be possible to call createSpan multiple times on the same builder? what should be the behavior? test it
         BraveSpanContext parent = getParent();
+        Long parentTraceId = null;
+        Long parentSpanId = null;
+        
+        // TODO it would be nice if there was a way to specify custom IDs (if there is no parent)
         if (null != parent) {
-            traceId = parent.getContextTraceId();
+            parentTraceId = parent.getContextTraceId();
             parentSpanId = parent.getContextSpanId();
             Long parentParentId = parent.getContextParentSpanId();
 
             // push this into the serverSpanState as the current span as that is where new localSpans find their parents
-            brave.serverTracer().setStateCurrentTrace(traceId, parentSpanId, parentParentId, operationName);
+            brave.serverTracer().setStateCurrentTrace(parentTraceId, parentSpanId, parentParentId, operationName);
         }
-        if (null == traceId && null == parentSpanId) {
+        if (null == parentTraceId && null == parentSpanId) {
             brave.serverTracer().clearCurrentSpan();
         }
+        
+        // TODO decide who should maintain Brave state - Span or SpanBuilder. It seems that calling setStateCurrentTrace during
+        // span creation belongs in the builder, but don't we need to do something when finishing a span?
+        // Also find other calls to brave and decide if they are in the right spot
+        SpanId spanId = brave.localTracer().startNewSpan(
+                "jvm",
+                operationName,
+                TimeUnit.SECONDS.toMicros(start.getEpochSecond()) + TimeUnit.NANOSECONDS.toMicros(start.getNano()));
+        
+        BraveSpanContext context = new BraveSpanContext(spanId, baggage, tracer);
 
         BraveSpan span = BraveSpan.create(
                 brave,
                 operationName,
+                context,
                 Optional.ofNullable(parent),
                 start,
                 Optional.ofNullable(serverTracer));
 
         // push this into the serverSpanState as the current span as that is where new localSpans find their parents
-        brave.serverTracer().setStateCurrentTrace(
-                span.spanId.traceId,
-                span.spanId.spanId,
-                span.spanId.parentId,
-                span.getOperationName());
+        brave.serverTracer().setStateCurrentTrace(spanId, operationName);
 
-        assert (null == traceId && null == parentSpanId) || (null != traceId && null != parentSpanId);
-        assert null == traceId || span.spanId.traceId == traceId;
-        assert null == parentSpanId || parentSpanId.equals(span.spanId.nullableParentId());
-
-        if (null == traceId && null == parentSpanId) {
-            // called through tracer.buildSpan(..), as opposed to builder.extract(..)
-            brave.serverTracer().setStateCurrentTrace(
-                    span.spanId.traceId,
-                    span.spanId.spanId,
-                    span.spanId.nullableParentId(),
-                    operationName);
-        }
+        assert (null == parentTraceId && null == parentSpanId) || (null != parentTraceId && null != parentSpanId);
+        assert null == parentTraceId || spanId.traceId == parentTraceId;
+        assert (null == spanId.nullableParentId() && null == parentSpanId) || parentSpanId.equals(spanId.nullableParentId());
 
         return span;
     }
@@ -92,68 +94,11 @@ final class BraveSpanBuilder extends AbstractSpanBuilder implements BraveSpanCon
     /** @Nullable **/
     private BraveSpanContext getParent() {
         for (Reference reference : references) {
-            if (References.CHILD_OF.equals(reference.getReferenceType())) {
+            if (References.CHILD_OF.equals(reference.getReferenceType()) 
+                    && !(reference.getReferredTo() instanceof NoopSpanContext)) {
                 return (BraveSpanContext) reference.getReferredTo();
             }
         }
-        return null;
-    }
-
-    @Override
-    boolean isTraceState(String key, Object value) {
-        return null != valueOf(key);
-    }
-
-    private static BraveHttpHeaders valueOf(String key) {
-        for (BraveHttpHeaders header : BraveHttpHeaders.values()) {
-            if (header.getName().equals(key)) {
-                return header;
-            }
-        }
-        return null;
-    }
-
-    @Override
-    BraveSpanBuilder withStateItem(String key, Object value) {
-        BraveHttpHeaders header = valueOf(key);
-        if (null == header) {
-            throw new IllegalArgumentException(key + " is not a valid brave header");
-        }
-        switch (header) {
-            case TraceId:
-                traceId = value instanceof Number
-                        ? ((Number)value).longValue()
-                        : IdConversion.convertToLong(value.toString());
-                break;
-            case SpanId:
-                parentSpanId = value instanceof Number
-                        ? ((Number)value).longValue()
-                        : IdConversion.convertToLong(value.toString());
-                break;
-            case ParentSpanId:
-                if (null == parentSpanId) {
-                    parentSpanId = value instanceof Number
-                            ? ((Number)value).longValue()
-                            : IdConversion.convertToLong(value.toString());
-                }
-                break;
-        }
-        return this;
-    }
-
-    @Override
-    public long getContextTraceId() {
-        return traceId;
-    }
-
-    @Override
-    public long getContextSpanId() {
-        return parentSpanId;
-    }
-
-    /** null **/
-    @Override
-    public Long getContextParentSpanId() {
         return null;
     }
 }

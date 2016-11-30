@@ -13,11 +13,61 @@
  */
 package io.opentracing.impl;
 
-import io.opentracing.SpanContext;
+import com.github.kristofa.brave.ClientTracer;
+import com.github.kristofa.brave.ServerTracer;
+import com.github.kristofa.brave.SpanId;
 
+import java.util.Collections;
+import java.util.Map;
 
-interface BraveSpanContext extends SpanContext {
-    long getContextTraceId();
-    long getContextSpanId();
-    Long getContextParentSpanId();
+class BraveSpanContext extends AbstractSpanContext {
+    SpanId braveSpanId;
+    ServerTracer serverTracer;
+    ClientTracer clientTracer;
+    
+    public BraveSpanContext(Map<String, Object> traceState, SpanId spanId, Map<String, String> baggage, BraveTracer tracer) {
+        // TODO passing traceState to AbstractSpanContext constructor does not give us anything. Is it useful at all?
+        // maybe AbstractSpanContext should not know about traceState and its subclasses should handle it? 
+        super(traceState, baggage, tracer);
+        this.braveSpanId = spanId;
+    }
+    
+    public BraveSpanContext(SpanId spanId, Map<String, String> baggage, BraveTracer tracer) {
+        // TODO add specific constructor to AbstractSpanContext, this is ugly - does not keep the consistency of having
+        // valid traceState
+        super(Collections.emptyMap(), baggage, tracer); 
+        braveSpanId = spanId;
+    }
+
+    // TODO rename, no need to have "context" here
+    public long getContextTraceId() {
+        return braveSpanId.traceId;
+    }
+
+    // TODO rename, no need to have "context" here
+    public long getContextSpanId() {
+        return braveSpanId.spanId;
+    }
+
+    // TODO rename, no need to have "context" here
+    public Long getContextParentSpanId() {
+        return braveSpanId.nullableParentId();
+    }
+
+    // TODO Do we need it here? (It's also on the Span) If yes - make sure that BraveSpanContext is immutable
+    public BraveSpanContext withServerTracer(ServerTracer serverTracer) {
+        this.serverTracer = serverTracer;
+        return this;
+    }
+
+    // TODO Do we need it here? (It's also on the Span) If yes - make sure that BraveSpanContext is immutable
+    public BraveSpanContext setClientTracer(ClientTracer clientTracer) {
+        this.clientTracer = clientTracer;
+        return this;
+    }
+    
+    // TODO public?
+    SpanId getBraveSpanId() {
+        return braveSpanId;
+    }
 }

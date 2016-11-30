@@ -13,18 +13,17 @@
  */
 package io.opentracing.impl;
 
-import java.util.Map;
-
 import com.github.kristofa.brave.Brave;
 import com.github.kristofa.brave.IdConversion;
 import com.github.kristofa.brave.SpanId;
 import com.github.kristofa.brave.http.BraveHttpHeaders;
-import io.opentracing.NoopSpanBuilder;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
-
 import io.opentracing.propagation.Format;
+
 import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 
 /**
  * See project README.md for examples on how to use the API.
@@ -55,15 +54,26 @@ public final class BraveTracer extends AbstractTracer {
 
     @Override
     BraveSpanBuilder createSpanBuilder(String operationName) {
-        return BraveSpanBuilder.create(brave, operationName);
+        return BraveSpanBuilder.create(brave, operationName, this);
+    }
+    
+    @Override
+    AbstractSpanContext createSpanContext(Map<String, Object> traceState, Map<String, String> baggage) {
+        Optional<SpanId> braveSpanId = SpanIdExtractor.toBraveId(traceState);
+        if(!braveSpanId.isPresent()) {
+            return NoopSpanContext.INSTANCE;
+        }
+        
+        BraveSpanContext ctx = new BraveSpanContext(traceState, braveSpanId.get(), baggage, this);
+        return ctx.withServerTracer(brave.serverTracer());
     }
 
     @Override
     Map<String, Object> getTraceState(SpanContext spanContext) {
-        Span span = (Span)spanContext;
+        BraveSpanContext context = (BraveSpanContext) spanContext;
 
         return new HashMap<String,Object>() {{
-            SpanId spanId = ((BraveSpan)span).spanId;
+            SpanId spanId = context.getBraveSpanId();
             put(BraveHttpHeaders.Sampled.getName(), "1");
             put(BraveHttpHeaders.TraceId.getName(), IdConversion.convertToString(spanId.getTraceId()));
             put(BraveHttpHeaders.SpanId.getName(), IdConversion.convertToString(spanId.getSpanId()));
@@ -72,6 +82,20 @@ public final class BraveTracer extends AbstractTracer {
             }
         }};
     }
+    
+    @Override
+    boolean isTraceState(String key, Object value) {
+        return null != braveHttpHeader(key);
+    }
+    
+    BraveHttpHeaders braveHttpHeader(String key) {
+        for (BraveHttpHeaders header : BraveHttpHeaders.values()) {
+            if (header.getName().equals(key)) {
+                return header;
+            }
+        }
+        return null;
+    }
 
     Map<String, String> getBaggage(Span span) {
         return ((BraveSpan)span).getBaggage();
@@ -79,30 +103,36 @@ public final class BraveTracer extends AbstractTracer {
 
     @Override
     public <C> void inject(SpanContext spanContext, Format<C> format, C carrier) {
-        brave.clientTracer().startNewSpan(((BraveSpan)spanContext).getOperationName());
+        brave.clientTracer().startNewSpan("no operation name"); // TODO why is it here??
         brave.clientTracer().setClientSent();
         super.inject(spanContext, format, carrier);
-        ((BraveSpan)spanContext).setClientTracer(brave.clientTracer());
+        ((BraveSpanContext)spanContext).setClientTracer(brave.clientTracer());
     }
 
     @Override
-    public <C> SpanBuilder extract(Format<C> format, C carrier) {
+    public <C> SpanContext extract(Format<C> format, C carrier) {
 
-        BraveSpanBuilder builder = (BraveSpanBuilder) super.extract(format, carrier);
+        SpanContext spanContext = super.extract(format, carrier);
+        if(spanContext instanceof io.opentracing.impl.NoopSpanContext) {
+            return spanContext;
+        }
+        
+        BraveSpanContext context = (BraveSpanContext) spanContext; 
 
-        if (null != builder.traceId && null != builder.parentSpanId) {
+        if (context.braveSpanId != null) {
 
             brave.serverTracer().setStateCurrentTrace(
-                    builder.traceId,
-                    builder.parentSpanId,
-                    null,
-                    builder.operationName);
+                    context.getContextTraceId(),
+                    context.getContextSpanId(),
+                    context.getContextParentSpanId(),
+                    "received"); // because there is no operation name defined at this point, it will be defined after calling
+                           // BraveSpanBuilder.createSpan
+                           // TODO is it ok?
 
             brave.serverTracer().setServerReceived();
-            builder.withServerTracer(brave.serverTracer());
-            return builder;
+            context.withServerTracer(brave.serverTracer());
+            return context;
         }
-        return NoopSpanBuilder.INSTANCE;
+        return NoopSpanContext.INSTANCE;
     }
-
 }
