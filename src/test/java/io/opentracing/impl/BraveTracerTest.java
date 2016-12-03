@@ -15,6 +15,7 @@ package io.opentracing.impl;
 
 import com.github.kristofa.brave.IdConversion;
 import com.github.kristofa.brave.ServerTracer;
+import com.github.kristofa.brave.ThreadLocalServerClientAndLocalSpanState;
 import com.github.kristofa.brave.http.BraveHttpHeaders;
 import io.opentracing.NoopSpanContext;
 import io.opentracing.Span;
@@ -27,16 +28,21 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import org.junit.Before;
 import org.junit.Test;
 
 
 public final class BraveTracerTest {
 
+    @Before
+    public void setup() {
+        ThreadLocalServerClientAndLocalSpanState.clear();
+    }
+
     @Test
     public void test_buildSpan() {
         String operationName = "test-test_buildSpan";
         BraveTracer tracer = new BraveTracer();
-        tracer.brave.serverTracer().clearCurrentSpan();
         BraveSpanBuilder builder = (BraveSpanBuilder) tracer.buildSpan(operationName);
 
         assert operationName.equals(builder.operationName) : builder.operationName;
@@ -65,7 +71,6 @@ public final class BraveTracerTest {
         String parentOperationName = "test-test_buildSpan_child-parent";
         String operationName = "test-test_buildSpan_child";
         BraveTracer tracer = new BraveTracer();
-        tracer.brave.serverTracer().clearCurrentSpan();
         BraveSpanBuilder builder = (BraveSpanBuilder) tracer.buildSpan(parentOperationName);
 
         assert parentOperationName.equals(builder.operationName) : builder.operationName;
@@ -101,7 +106,6 @@ public final class BraveTracerTest {
         String parentOperationName = "test-test_buildSpan_seperate_traces-parent";
         String operationName = "test-test_buildSpan_seperate_traces";
         BraveTracer tracer = new BraveTracer();
-        tracer.brave.serverTracer().clearCurrentSpan();
         BraveSpanBuilder builder = (BraveSpanBuilder) tracer.buildSpan(parentOperationName);
 
         assert parentOperationName.equals(builder.operationName) : builder.operationName;
@@ -149,7 +153,6 @@ public final class BraveTracerTest {
         String operationName1 = "test-test_buildSpan_same_trace-1";
         String operationName2 = "test-test_buildSpan_same_trace-2";
         BraveTracer tracer = new BraveTracer();
-        tracer.brave.serverTracer().clearCurrentSpan();
         BraveSpanBuilder builder = (BraveSpanBuilder) tracer.buildSpan(parentOperationName);
 
         assert parentOperationName.equals(builder.operationName) : builder.operationName;
@@ -188,11 +191,10 @@ public final class BraveTracerTest {
     }
 
     @Test
-    public void test_buildSpan_notChild_seperate_traces() {
+    public void test_buildSpan_notChild_separate_traces() {
         String parentOperationName = "test-test_buildSpan_notChild_seperate_traces-parent";
         String operationName = "test-test_buildSpan_notChild_seperate_traces";
         BraveTracer tracer = new BraveTracer();
-        tracer.brave.serverTracer().clearCurrentSpan();
         BraveSpanBuilder builder = (BraveSpanBuilder) tracer.buildSpan(parentOperationName);
 
         assert parentOperationName.equals(builder.operationName) : builder.operationName;
@@ -357,7 +359,6 @@ public final class BraveTracerTest {
     public void test_stack() throws InterruptedException {
 
         BraveTracer tracer = new BraveTracer();
-        tracer.brave.serverTracer().clearCurrentSpan();
 
         long start = System.currentTimeMillis() - 10000;
 
@@ -482,8 +483,10 @@ public final class BraveTracerTest {
         assert parent.spanId.traceId == span.spanId.traceId
                 : "parent: " + parent.spanId.traceId + " ; child: " + span.spanId.traceId;
 
-        assert parent.spanId.spanId == span.spanId.nullableParentId()
-                : "parent: " + parent.spanId.spanId + " ; child: " + span.spanId.nullableParentId();
+        if (!extracted) {
+            assert parent.spanId.spanId == span.spanId.nullableParentId()
+                    : "parent: " + parent.spanId.spanId + " ; child: " + span.spanId.nullableParentId();
+        }
 
         assert extracted || span.parent.isPresent();
         assert extracted || span.parent.get().equals(parent);

@@ -13,12 +13,15 @@
  */
 package io.opentracing.impl;
 
+import com.github.kristofa.brave.ServerSpan;
 import java.util.Map;
 
 import com.github.kristofa.brave.Brave;
 import com.github.kristofa.brave.IdConversion;
+import com.github.kristofa.brave.InheritableServerClientAndLocalSpanState;
 import com.github.kristofa.brave.SpanId;
 import com.github.kristofa.brave.http.BraveHttpHeaders;
+import com.twitter.zipkin.gen.Endpoint;
 import io.opentracing.NoopSpanBuilder;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
@@ -46,7 +49,11 @@ public final class BraveTracer extends AbstractTracer {
     final Brave brave;
 
     public BraveTracer() {
-        this(new Brave.Builder());
+        this(Endpoint.create("unknown", 0));
+    }
+
+    public BraveTracer(Endpoint endpoint) {
+        this(new Brave.Builder(new InheritableServerClientAndLocalSpanState(endpoint)));
     }
 
     public BraveTracer(Brave.Builder builder) {
@@ -60,15 +67,14 @@ public final class BraveTracer extends AbstractTracer {
 
     @Override
     Map<String, Object> getTraceState(SpanContext spanContext) {
-        Span span = (Span)spanContext;
+        BraveSpanContext sc = (BraveSpanContext)spanContext;
 
         return new HashMap<String,Object>() {{
-            SpanId spanId = ((BraveSpan)span).spanId;
             put(BraveHttpHeaders.Sampled.getName(), "1");
-            put(BraveHttpHeaders.TraceId.getName(), IdConversion.convertToString(spanId.getTraceId()));
-            put(BraveHttpHeaders.SpanId.getName(), IdConversion.convertToString(spanId.getSpanId()));
-            if (null != spanId.getParentSpanId()) {
-                put(BraveHttpHeaders.ParentSpanId.getName(), IdConversion.convertToString(spanId.getParentSpanId()));
+            put(BraveHttpHeaders.TraceId.getName(), IdConversion.convertToString(sc.getContextTraceId()));
+            put(BraveHttpHeaders.SpanId.getName(), IdConversion.convertToString(sc.getContextSpanId()));
+            if (null != sc.getContextParentSpanId()) {
+                put(BraveHttpHeaders.ParentSpanId.getName(), IdConversion.convertToString(sc.getContextParentSpanId()));
             }
         }};
     }
@@ -79,9 +85,31 @@ public final class BraveTracer extends AbstractTracer {
 
     @Override
     public <C> void inject(SpanContext spanContext, Format<C> format, C carrier) {
-        brave.clientTracer().startNewSpan(((BraveSpan)spanContext).getOperationName());
+        final SpanId spanId = brave.clientTracer().startNewSpan(((BraveSpan)spanContext).getOperationName());
         brave.clientTracer().setClientSent();
-        super.inject(spanContext, format, carrier);
+
+        super.inject(
+                new BraveSpanContext() {
+                    @Override
+                    public long getContextTraceId() {
+                        return spanId.traceId;
+                    }
+                    @Override
+                    public long getContextSpanId() {
+                        return spanId.spanId;
+                    }
+                    @Override
+                    public Long getContextParentSpanId() {
+                        return spanId.parentId;
+                    }
+                    @Override
+                    public Iterable<Map.Entry<String, String>> baggageItems() {
+                        return spanContext.baggageItems();
+                    }
+                },
+                format,
+                carrier);
+
         ((BraveSpan)spanContext).setClientTracer(brave.clientTracer());
     }
 
@@ -92,13 +120,20 @@ public final class BraveTracer extends AbstractTracer {
 
         if (null != builder.traceId && null != builder.parentSpanId) {
 
+            SpanId context = SpanId.builder().traceId(builder.traceId).spanId(builder.parentSpanId).build();
+
             brave.serverTracer().setStateCurrentTrace(
-                    builder.traceId,
-                    builder.parentSpanId,
-                    null,
+                    context,
                     builder.operationName);
 
             brave.serverTracer().setServerReceived();
+
+            ServerSpan serverSpan = brave.serverSpanThreadBinder().getCurrentServerSpan();
+            if (Boolean.FALSE.equals(serverSpan.getSample())) {
+                return NoopSpanBuilder.INSTANCE;
+            }
+            brave.localSpanThreadBinder().setCurrentSpan(serverSpan.getSpan());
+
             builder.withServerTracer(brave.serverTracer());
             return builder;
         }
