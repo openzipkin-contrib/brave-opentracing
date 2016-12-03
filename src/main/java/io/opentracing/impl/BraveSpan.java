@@ -21,7 +21,6 @@ import com.github.kristofa.brave.Brave;
 import com.github.kristofa.brave.ClientTracer;
 import com.github.kristofa.brave.ServerTracer;
 import com.github.kristofa.brave.SpanId;
-import io.opentracing.Span;
 
 
 final class BraveSpan extends AbstractSpan implements BraveSpanContext {

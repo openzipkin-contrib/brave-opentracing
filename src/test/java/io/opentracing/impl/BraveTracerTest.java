@@ -482,8 +482,10 @@ public final class BraveTracerTest {
         assert parent.spanId.traceId == span.spanId.traceId
                 : "parent: " + parent.spanId.traceId + " ; child: " + span.spanId.traceId;
 
-        assert parent.spanId.spanId == span.spanId.nullableParentId()
-                : "parent: " + parent.spanId.spanId + " ; child: " + span.spanId.nullableParentId();
+        if (!extracted) {
+            assert parent.spanId.spanId == span.spanId.nullableParentId()
+                    : "parent: " + parent.spanId.spanId + " ; child: " + span.spanId.nullableParentId();
+        }
 
         assert extracted || span.parent.isPresent();
         assert extracted || span.parent.get().equals(parent);

@@ -60,15 +60,14 @@ public final class BraveTracer extends AbstractTracer {
 
     @Override
     Map<String, Object> getTraceState(SpanContext spanContext) {
-        Span span = (Span)spanContext;
+        BraveSpanContext sc = (BraveSpanContext)spanContext;
 
         return new HashMap<String,Object>() {{
-            SpanId spanId = ((BraveSpan)span).spanId;
             put(BraveHttpHeaders.Sampled.getName(), "1");
-            put(BraveHttpHeaders.TraceId.getName(), IdConversion.convertToString(spanId.getTraceId()));
-            put(BraveHttpHeaders.SpanId.getName(), IdConversion.convertToString(spanId.getSpanId()));
-            if (null != spanId.getParentSpanId()) {
-                put(BraveHttpHeaders.ParentSpanId.getName(), IdConversion.convertToString(spanId.getParentSpanId()));
+            put(BraveHttpHeaders.TraceId.getName(), IdConversion.convertToString(sc.getContextTraceId()));
+            put(BraveHttpHeaders.SpanId.getName(), IdConversion.convertToString(sc.getContextSpanId()));
+            if (null != sc.getContextParentSpanId()) {
+                put(BraveHttpHeaders.ParentSpanId.getName(), IdConversion.convertToString(sc.getContextParentSpanId()));
             }
         }};
     }
@@ -79,9 +78,34 @@ public final class BraveTracer extends AbstractTracer {
 
     @Override
     public <C> void inject(SpanContext spanContext, Format<C> format, C carrier) {
-        brave.clientTracer().startNewSpan(((BraveSpan)spanContext).getOperationName());
+        final SpanId spanId = brave.clientTracer().startNewSpan(((BraveSpan)spanContext).getOperationName());
         brave.clientTracer().setClientSent();
-        super.inject(spanContext, format, carrier);
+
+        super.inject(
+                new BraveSpanContext() {
+                    @Override
+                    public long getContextTraceId() {
+                        return spanId.traceId;
+                    }
+
+                    @Override
+                    public long getContextSpanId() {
+                        return spanId.spanId;
+                    }
+
+                    @Override
+                    public Long getContextParentSpanId() {
+                        return spanId.parentId;
+                    }
+
+                    @Override
+                    public Iterable<Map.Entry<String, String>> baggageItems() {
+                        return spanContext.baggageItems();
+                    }
+                },
+                format,
+                carrier);
+
         ((BraveSpan)spanContext).setClientTracer(brave.clientTracer());
     }
 
