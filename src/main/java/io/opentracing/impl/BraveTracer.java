@@ -17,8 +17,10 @@ import java.util.Map;
 
 import com.github.kristofa.brave.Brave;
 import com.github.kristofa.brave.IdConversion;
+import com.github.kristofa.brave.InheritableServerClientAndLocalSpanState;
 import com.github.kristofa.brave.SpanId;
 import com.github.kristofa.brave.http.BraveHttpHeaders;
+import com.twitter.zipkin.gen.Endpoint;
 import io.opentracing.NoopSpanBuilder;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
@@ -46,7 +48,11 @@ public final class BraveTracer extends AbstractTracer {
     final Brave brave;
 
     public BraveTracer() {
-        this(new Brave.Builder());
+        this(Endpoint.create("unknown", 0));
+    }
+
+    public BraveTracer(Endpoint endpoint) {
+        this(new Brave.Builder(new InheritableServerClientAndLocalSpanState(endpoint)));
     }
 
     public BraveTracer(Brave.Builder builder) {
@@ -113,10 +119,13 @@ public final class BraveTracer extends AbstractTracer {
 
         if (null != builder.traceId && null != builder.parentSpanId) {
 
+            SpanId context = SpanId.builder().traceId(builder.traceId).spanId(builder.parentSpanId).build();
+
+            brave.localSpanThreadBinder().setCurrentSpan(
+                    context.toSpan().setName(builder.operationName).setTimestamp(System.currentTimeMillis() * 1000));
+
             brave.serverTracer().setStateCurrentTrace(
-                    builder.traceId,
-                    builder.parentSpanId,
-                    null,
+                    context,
                     builder.operationName);
 
             brave.serverTracer().setServerReceived();
