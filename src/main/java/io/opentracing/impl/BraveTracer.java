@@ -87,17 +87,14 @@ public final class BraveTracer extends AbstractTracer {
                     public long getContextTraceId() {
                         return spanId.traceId;
                     }
-
                     @Override
                     public long getContextSpanId() {
                         return spanId.spanId;
                     }
-
                     @Override
                     public Long getContextParentSpanId() {
                         return spanId.parentId;
                     }
-
                     @Override
                     public Iterable<Map.Entry<String, String>> baggageItems() {
                         return spanContext.baggageItems();
