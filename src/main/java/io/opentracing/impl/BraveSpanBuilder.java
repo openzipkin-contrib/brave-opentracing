@@ -106,7 +106,7 @@ final class BraveSpanBuilder extends AbstractSpanBuilder implements BraveSpanCon
 
     private static BraveHttpHeaders valueOf(String key) {
         for (BraveHttpHeaders header : BraveHttpHeaders.values()) {
-            if (header.getName().equals(key)) {
+            if (header.getName().equalsIgnoreCase(key)) {
                 return header;
             }
         }
