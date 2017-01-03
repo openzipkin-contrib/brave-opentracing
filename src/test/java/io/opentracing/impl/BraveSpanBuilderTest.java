@@ -14,35 +14,31 @@
 package io.opentracing.impl;
 
 import com.github.kristofa.brave.Brave;
-import com.github.kristofa.brave.Sampler;
-import com.github.kristofa.brave.SpanCollector;
+import com.github.kristofa.brave.ThreadLocalServerClientAndLocalSpanState;
 import com.github.kristofa.brave.http.BraveHttpHeaders;
 import io.opentracing.Span;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import org.junit.Before;
 import org.junit.Test;
 
-import static org.mockito.Mockito.mock;
-
-
 public final class BraveSpanBuilderTest {
 
-    private SpanCollector mockSpanCollector;
-    private Brave brave;
+    private List<zipkin.Span> spans = new ArrayList<>();
+    // -1062731775 = 192.168.0.1
+    private Brave brave = new Brave.Builder(-1062731775, 8080, "unknown")
+        .reporter(spans::add).build();
 
     @Before
     public void setup() {
-        mockSpanCollector = mock(SpanCollector.class);
-        // -1062731775 = 192.168.0.1
-        final Brave.Builder builder = new Brave.Builder(-1062731775, 8080, "unknown");
-        brave = builder.spanCollector(mockSpanCollector).traceSampler(Sampler.create(1)).build();
+        ThreadLocalServerClientAndLocalSpanState.clear();
     }
 
     @Test
     public void testCreateSpan() {
         String operationName = "test-testCreateSpan";
-        brave.serverTracer().clearCurrentSpan();
         BraveSpanBuilder builder = BraveSpanBuilder.create(brave, operationName);
         BraveSpan span = builder.createSpan();
 
@@ -59,7 +55,6 @@ public final class BraveSpanBuilderTest {
     @Test
     public void testWithServerTracer() {
         String operationName = "test-testWithServerTracer";
-        brave.serverTracer().clearCurrentSpan();
 
         BraveSpanBuilder builder = BraveSpanBuilder
                 .create(brave, operationName)
@@ -82,7 +77,6 @@ public final class BraveSpanBuilderTest {
     public void testWithServerTracer_withParent() {
         String operationName = "test-testWithServerTracer_withParent";
         Instant start = Instant.now();
-        brave.serverTracer().clearCurrentSpan();
 
         BraveSpan parent = BraveSpan.create(
                 brave,
@@ -92,9 +86,7 @@ public final class BraveSpanBuilderTest {
                 Optional.of(brave.serverTracer()));
 
         brave.serverTracer().setStateCurrentTrace(
-                parent.spanId.traceId,
-                parent.spanId.spanId,
-                null,
+                parent.spanId,
                 parent.getOperationName());
 
         BraveSpanBuilder builder = (BraveSpanBuilder) BraveSpanBuilder
@@ -132,7 +124,6 @@ public final class BraveSpanBuilderTest {
     @Test
     public void testWithStateItem() {
         String operationName = "test-testWithStateItem";
-        brave.serverTracer().clearCurrentSpan();
 
         BraveSpanBuilder builder = BraveSpanBuilder
                 .create(brave, operationName)

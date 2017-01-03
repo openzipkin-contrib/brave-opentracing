@@ -14,28 +14,25 @@
 package io.opentracing.impl;
 
 import com.github.kristofa.brave.Brave;
-import com.github.kristofa.brave.Sampler;
 import com.github.kristofa.brave.ServerTracer;
-import com.github.kristofa.brave.SpanCollector;
-import io.opentracing.Span;
+import com.github.kristofa.brave.ThreadLocalServerClientAndLocalSpanState;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import org.junit.Before;
 import org.junit.Test;
 
-import static org.mockito.Mockito.mock;
-
 public final class BraveSpanTest {
 
-    private SpanCollector mockSpanCollector;
-    private Brave brave;
+    private List<zipkin.Span> spans = new ArrayList<>();
+    // -1062731775 = 192.168.0.1
+    private Brave brave = new Brave.Builder(-1062731775, 8080, "unknown")
+        .reporter(spans::add).build();
 
     @Before
     public void setup() {
-        mockSpanCollector = mock(SpanCollector.class);
-        // -1062731775 = 192.168.0.1
-        final Brave.Builder builder = new Brave.Builder(-1062731775, 8080, "unknown");
-        brave = builder.spanCollector(mockSpanCollector).traceSampler(Sampler.create(1)).build();
+        ThreadLocalServerClientAndLocalSpanState.clear();
     }
 
     @Test

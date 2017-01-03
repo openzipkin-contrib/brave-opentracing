@@ -51,6 +51,7 @@ final class BraveSpanBuilder extends AbstractSpanBuilder implements BraveSpanCon
             brave.serverTracer().setStateCurrentTrace(traceId, parentSpanId, parentParentId, operationName);
         }
         if (null == traceId && null == parentSpanId) {
+            brave.localSpanThreadBinder().setCurrentSpan(null);
             brave.serverTracer().clearCurrentSpan();
         }
 
