@@ -24,7 +24,7 @@
     <description>Zipkin OpenTracing Brave bridge</description>
     <inceptionYear>2016</inceptionYear>
 
-    <version>0.17.0</version>
+    <version>0.17.1-SNAPSHOT</version>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -50,7 +50,7 @@
     <url>https://github.com/openzipkin/brave-opentracing</url>
     <connection>scm:git:https://github.com/openzipkin/brave-opentracing.git</connection>
     <developerConnection>scm:git:https://github.com/openzipkin/brave-opentracing.git</developerConnection>
-    <tag>0.17.0</tag>
+    <tag>HEAD</tag>
   </scm>
 
   <developers>
