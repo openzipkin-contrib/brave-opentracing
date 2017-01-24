@@ -38,7 +38,7 @@ public class BraveTracer implements Tracer {
     private brave.Tracer brave4;
     private Brave brave3; // Not sure if I need this or not. Might want to attach to the local tracer context
 
-    static BraveTracer wrap(brave.Tracer brave4) {
+    public static BraveTracer wrap(brave.Tracer brave4) {
         if (brave4 == null) throw new NullPointerException("brave tracer == null");
         return new BraveTracer(brave4);
     }
