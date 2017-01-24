@@ -43,7 +43,7 @@ public class BraveTracer implements Tracer {
         return new BraveTracer(brave4);
     }
 
-    BraveTracer(brave.Tracer brave4) {
+    private BraveTracer(brave.Tracer brave4) {
         this.brave4 = brave4;
         this.brave3 = TracerAdapter.newBrave(this.brave4);
     }
