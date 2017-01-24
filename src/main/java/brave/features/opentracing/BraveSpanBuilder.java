@@ -13,7 +13,6 @@
  */
 package brave.features.opentracing;
 
-import io.opentracing.References;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
@@ -22,9 +21,11 @@ import java.util.Map;
 
 public class BraveSpanBuilder implements Tracer.SpanBuilder {
 
+    private brave.Tracer brave;
     private String operationName;
 
-    public BraveSpanBuilder(String operationName) {
+    public BraveSpanBuilder(brave.Tracer brave, String operationName) {
+        this.brave = brave;
         this.operationName = operationName;
     }
 
@@ -33,7 +34,7 @@ public class BraveSpanBuilder implements Tracer.SpanBuilder {
      */
     @Override
     public Tracer.SpanBuilder asChildOf(SpanContext parent) {
-        return null;
+        return this;
     }
 
     /**
@@ -89,6 +90,7 @@ public class BraveSpanBuilder implements Tracer.SpanBuilder {
      */
     @Override
     public Span start() {
+        String component = "unknown";
         return null;
     }
 

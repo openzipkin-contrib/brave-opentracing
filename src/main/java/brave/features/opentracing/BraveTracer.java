@@ -13,35 +13,24 @@
  */
 package brave.features.opentracing;
 
-import com.github.kristofa.brave.Brave;
-import com.github.kristofa.brave.InheritableServerClientAndLocalSpanState;
-import com.twitter.zipkin.gen.Endpoint;
+import brave.propagation.TraceContext;
+import brave.propagation.TraceContextOrSamplingFlags;
 import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
 import io.opentracing.propagation.Format;
 
 public class BraveTracer implements Tracer {
 
-    final Brave brave;
-
-    public BraveTracer() {
-        this(Endpoint.create("unknown", 0));
-    }
-
-    public BraveTracer(Endpoint endpoint) {
-        this(new Brave.Builder(new InheritableServerClientAndLocalSpanState(endpoint)));
-    }
-
-    public BraveTracer(Brave.Builder builder) {
-        brave = builder.build();
-    }
+    private brave.Tracer brave;
+    private TraceContext.Injector injector;
+    private TraceContext.Extractor extractor;
 
     /**
      * {@inheritDoc}
      */
     @Override
     public SpanBuilder buildSpan(String operationName) {
-        return new BraveSpanBuilder(operationName);
+        return new BraveSpanBuilder(brave, operationName);
     }
 
     /**
@@ -49,7 +38,9 @@ public class BraveTracer implements Tracer {
      */
     @Override
     public <C> void inject(SpanContext spanContext, Format<C> format, C carrier) {
-        // TODO How to handle `Formats` and `Carriers` for brave
+        // TODO select an injector for the specific FORMAT
+
+        injector.inject(((BraveSpanContext) spanContext).unwrap(), carrier);
     }
 
     /**
@@ -57,7 +48,12 @@ public class BraveTracer implements Tracer {
      */
     @Override
     public <C> SpanContext extract(Format<C> format, C carrier) {
-        // TODO How to handle `Formats` and `Carriers` for brave
-        return null;
+        // TODO select an extractor for the specific FORMAT
+
+        TraceContextOrSamplingFlags contextOrSamplingFlags = extractor.extract(carrier);
+
+        return contextOrSamplingFlags.context() != null
+                ? BraveSpanContext.wrap(contextOrSamplingFlags.context())
+                : null;
     }
 }
