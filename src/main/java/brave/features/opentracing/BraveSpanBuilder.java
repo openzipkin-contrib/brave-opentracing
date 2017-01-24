@@ -13,16 +13,25 @@
  */
 package brave.features.opentracing;
 
+import brave.propagation.TraceContext;
+import io.opentracing.References;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class BraveSpanBuilder implements Tracer.SpanBuilder {
 
     private brave.Tracer brave;
+
     private String operationName;
+    private final Map<String, String> tags = new LinkedHashMap<>();
+
+    long timestamp;
+    private TraceContext parent;
 
     public BraveSpanBuilder(brave.Tracer brave, String operationName) {
         this.brave = brave;
@@ -34,7 +43,7 @@ public class BraveSpanBuilder implements Tracer.SpanBuilder {
      */
     @Override
     public Tracer.SpanBuilder asChildOf(SpanContext parent) {
-        return this;
+        return addReference(References.CHILD_OF, parent);
     }
 
     /**
@@ -42,7 +51,7 @@ public class BraveSpanBuilder implements Tracer.SpanBuilder {
      */
     @Override
     public Tracer.SpanBuilder asChildOf(Span parent) {
-        return null;
+        return asChildOf(parent.context());
     }
 
     /**
@@ -50,7 +59,13 @@ public class BraveSpanBuilder implements Tracer.SpanBuilder {
      */
     @Override
     public Tracer.SpanBuilder addReference(String referenceType, SpanContext referencedContext) {
-        return null;
+        if (parent != null) {
+            return this;
+        }
+        if (References.CHILD_OF.equals(referenceType) || References.FOLLOWS_FROM.equals(referenceType)) {
+            this.parent = ((BraveSpanContext) referencedContext).unwrap();
+        }
+        return this;
     }
 
     /**
@@ -58,7 +73,8 @@ public class BraveSpanBuilder implements Tracer.SpanBuilder {
      */
     @Override
     public Tracer.SpanBuilder withTag(String key, String value) {
-        return null;
+        tags.put(key, value);
+        return this;
     }
 
     /**
@@ -66,7 +82,7 @@ public class BraveSpanBuilder implements Tracer.SpanBuilder {
      */
     @Override
     public Tracer.SpanBuilder withTag(String key, boolean value) {
-        return null;
+        return withTag(key, Boolean.toString(value));
     }
 
     /**
@@ -74,7 +90,7 @@ public class BraveSpanBuilder implements Tracer.SpanBuilder {
      */
     @Override
     public Tracer.SpanBuilder withTag(String key, Number value) {
-        return null;
+        return withTag(key, value.toString());
     }
 
     /**
@@ -82,7 +98,8 @@ public class BraveSpanBuilder implements Tracer.SpanBuilder {
      */
     @Override
     public Tracer.SpanBuilder withStartTimestamp(long microseconds) {
-        return null;
+        this.timestamp = microseconds;
+        return this;
     }
 
     /**
@@ -90,8 +107,15 @@ public class BraveSpanBuilder implements Tracer.SpanBuilder {
      */
     @Override
     public Span start() {
-        String component = "unknown";
-        return null;
+        brave.Span span = parent == null ? brave.newTrace() : brave.newChild(parent);
+        if (operationName != null) span.name(operationName);
+        for (Map.Entry<String, String> tag : tags.entrySet()) {
+            span.tag(tag.getKey(), tag.getValue());
+        }
+        if (timestamp != 0) {
+            return BraveSpan.wrap(span.start(timestamp));
+        }
+        return BraveSpan.wrap(span.start());
     }
 
     /**
@@ -99,6 +123,7 @@ public class BraveSpanBuilder implements Tracer.SpanBuilder {
      */
     @Override
     public Iterable<Map.Entry<String, String>> baggageItems() {
-        return null;
+        // brave doesn't support baggage
+        return Collections.EMPTY_SET;
     }
 }

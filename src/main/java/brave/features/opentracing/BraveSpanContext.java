@@ -6,38 +6,26 @@ import io.opentracing.SpanContext;
 import java.util.Collections;
 import java.util.Map;
 
-/**
- * Created by ddcbdevins on 1/24/17.
- */
 public class BraveSpanContext implements SpanContext {
 
     private TraceContext traceContext;
-    private boolean extracted;
 
-    static SpanContext wrap(TraceContext traceContext) {
-        return new BraveSpanContext();
+    static BraveSpanContext wrap(TraceContext traceContext) {
+        BraveSpanContext context = new BraveSpanContext();
+        context.traceContext = traceContext;
+        return context;
     }
 
-    public TraceContext unwrap() {
+    final TraceContext unwrap() {
         return traceContext;
     }
 
     /**
-     * @return all zero or more baggage items propagating along with the associated Span
-     * @see Span#setBaggageItem(String, String)
-     * @see Span#getBaggageItem(String)
+     * {@inheritDoc}
      */
     @Override
     public Iterable<Map.Entry<String, String>> baggageItems() {
-        // TODO brave doesn't seem to support baggage yet
-        return Collections.EMPTY_LIST;
-    }
-
-    public boolean isExtracted() {
-        return extracted;
-    }
-
-    public void setExtracted(boolean extracted) {
-        this.extracted = extracted;
+        // brave doesn't support baggage
+        return Collections.EMPTY_SET;
     }
 }

@@ -20,6 +20,23 @@ import java.util.Map;
 
 public class BraveSpan implements Span {
 
+    static BraveSpan wrap(brave.Span span) {
+        if (span == null) throw new NullPointerException("span == null");
+        return new BraveSpan(span);
+    }
+
+    final brave.Span unwrap() {
+        return delegate;
+    }
+
+    final brave.Span delegate;
+    final SpanContext context;
+
+    private BraveSpan(brave.Span delegate) {
+        this.delegate = delegate;
+        this.context = BraveSpanContext.wrap(delegate.context());
+    }
+
     /**
      * {@inheritDoc}
      */

@@ -13,24 +13,47 @@
  */
 package brave.features.opentracing;
 
+import brave.internal.Nullable;
+import brave.propagation.Propagation;
 import brave.propagation.TraceContext;
 import brave.propagation.TraceContextOrSamplingFlags;
+import com.github.kristofa.brave.Brave;
+import com.github.kristofa.brave.TracerAdapter;
 import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
 import io.opentracing.propagation.Format;
+import io.opentracing.propagation.TextMap;
+
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 public class BraveTracer implements Tracer {
 
-    private brave.Tracer brave;
-    private TraceContext.Injector injector;
-    private TraceContext.Extractor extractor;
+    static final List<String> PROPAGATION_KEYS = Propagation.B3_STRING.keys();
+    static final TraceContext.Injector<TextMap> INJECTOR = Propagation.B3_STRING.injector(TextMap::put);
+    static final TraceContext.Extractor<TextMapView> EXTRACTOR = Propagation.B3_STRING.extractor(TextMapView::get);
+
+    private brave.Tracer brave4;
+    private Brave brave3;
+
+    static BraveTracer wrap(brave.Tracer brave4) {
+        if (brave4 == null) throw new NullPointerException("brave tracer == null");
+        return new BraveTracer(brave4);
+    }
+
+    BraveTracer(brave.Tracer brave4) {
+        this.brave4 = brave4;
+        this.brave3 = TracerAdapter.newBrave(this.brave4);
+    }
 
     /**
      * {@inheritDoc}
      */
     @Override
     public SpanBuilder buildSpan(String operationName) {
-        return new BraveSpanBuilder(brave, operationName);
+        return new BraveSpanBuilder(brave4, operationName);
     }
 
     /**
@@ -38,9 +61,11 @@ public class BraveTracer implements Tracer {
      */
     @Override
     public <C> void inject(SpanContext spanContext, Format<C> format, C carrier) {
-        // TODO select an injector for the specific FORMAT
-
-        injector.inject(((BraveSpanContext) spanContext).unwrap(), carrier);
+        if (format != Format.Builtin.HTTP_HEADERS) {
+            throw new UnsupportedOperationException(format + " != Format.Builtin.HTTP_HEADERS");
+        }
+        TraceContext traceContext = ((BraveSpanContext) spanContext).unwrap();
+        INJECTOR.inject(traceContext, (TextMap) carrier);
     }
 
     /**
@@ -48,12 +73,44 @@ public class BraveTracer implements Tracer {
      */
     @Override
     public <C> SpanContext extract(Format<C> format, C carrier) {
-        // TODO select an extractor for the specific FORMAT
+        if (format != Format.Builtin.HTTP_HEADERS) {
+            throw new UnsupportedOperationException(format.toString());
+        }
+        TraceContextOrSamplingFlags result =
+                EXTRACTOR.extract(new TextMapView(PROPAGATION_KEYS, (TextMap) carrier));
+        TraceContext context = result.context() != null
+                ? result.context().toBuilder().shared(true).build()
+                : brave4.newTrace(result.samplingFlags()).context();
+        return BraveSpanContext.wrap(context);
+    }
 
-        TraceContextOrSamplingFlags contextOrSamplingFlags = extractor.extract(carrier);
 
-        return contextOrSamplingFlags.context() != null
-                ? BraveSpanContext.wrap(contextOrSamplingFlags.context())
-                : null;
+    /**
+     * Eventhough TextMap is named like Map, it doesn't have a retrieve-by-key method
+     */
+    static final class TextMapView {
+        final Iterator<Map.Entry<String, String>> input;
+        final Map<String, String> cache = new LinkedHashMap<>();
+        final List<String> fields;
+
+        TextMapView(List<String> fields, TextMap input) {
+            this.fields = fields;
+            this.input = input.iterator();
+        }
+
+        @Nullable
+        String get(String key) {
+            String result = cache.get(key);
+            if (result != null) return result;
+            while (input.hasNext()) {
+                Map.Entry<String, String> next = input.next();
+                if (next.getKey().equals(key)) {
+                    return next.getValue();
+                } else if (fields.contains(next.getKey())) {
+                    cache.put(next.getKey(), next.getValue());
+                }
+            }
+            return null;
+        }
     }
 }
