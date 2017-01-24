@@ -36,7 +36,7 @@ public class BraveTracer implements Tracer {
     static final TraceContext.Extractor<TextMapView> EXTRACTOR = Propagation.B3_STRING.extractor(TextMapView::get);
 
     private brave.Tracer brave4;
-    private Brave brave3;
+    private Brave brave3; // Not sure if I need this or not. Might want to attach to the local tracer context
 
     static BraveTracer wrap(brave.Tracer brave4) {
         if (brave4 == null) throw new NullPointerException("brave tracer == null");

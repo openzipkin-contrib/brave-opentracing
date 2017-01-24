@@ -112,10 +112,13 @@ public class BraveSpanBuilder implements Tracer.SpanBuilder {
         for (Map.Entry<String, String> tag : tags.entrySet()) {
             span.tag(tag.getKey(), tag.getValue());
         }
+        brave.Span result;
         if (timestamp != 0) {
-            return BraveSpan.wrap(span.start(timestamp));
+            result = span.start(timestamp);
+        } else {
+            result = span.start();
         }
-        return BraveSpan.wrap(span.start());
+        return BraveSpan.wrap(result);
     }
 
     /**

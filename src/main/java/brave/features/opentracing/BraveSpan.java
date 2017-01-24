@@ -42,7 +42,7 @@ public class BraveSpan implements Span {
      */
     @Override
     public SpanContext context() {
-        return null;
+        return context;
     }
 
     /**
@@ -50,7 +50,7 @@ public class BraveSpan implements Span {
      */
     @Override
     public void finish() {
-
+        delegate.finish();
     }
 
     /**
@@ -58,7 +58,7 @@ public class BraveSpan implements Span {
      */
     @Override
     public void finish(long finishMicros) {
-
+        delegate.finish(finishMicros);
     }
 
     /**
@@ -66,7 +66,7 @@ public class BraveSpan implements Span {
      */
     @Override
     public void close() {
-
+        delegate.close();
     }
 
     /**
@@ -74,7 +74,8 @@ public class BraveSpan implements Span {
      */
     @Override
     public Span setTag(String key, String value) {
-        return null;
+        delegate.tag(key, value);
+        return this;
     }
 
     /**
@@ -82,7 +83,7 @@ public class BraveSpan implements Span {
      */
     @Override
     public Span setTag(String key, boolean value) {
-        return null;
+        return setTag(key, Boolean.toString(value));
     }
 
     /**
@@ -90,7 +91,7 @@ public class BraveSpan implements Span {
      */
     @Override
     public Span setTag(String key, Number value) {
-        return null;
+        return setTag(key, value.toString());
     }
 
     /**
@@ -98,7 +99,9 @@ public class BraveSpan implements Span {
      */
     @Override
     public Span log(Map<String, ?> fields) {
-        return null;
+        if (fields.isEmpty()) return this;
+        // in real life, do like zipkin-go-opentracing: "key1=value1 key2=value2"
+        return log(fields.toString());
     }
 
     /**
@@ -106,7 +109,9 @@ public class BraveSpan implements Span {
      */
     @Override
     public Span log(long timestampMicroseconds, Map<String, ?> fields) {
-        return null;
+        if (fields.isEmpty()) return this;
+        // in real life, do like zipkin-go-opentracing: "key1=value1 key2=value2"
+        return log(timestampMicroseconds, fields.toString());
     }
 
     /**
@@ -114,7 +119,8 @@ public class BraveSpan implements Span {
      */
     @Override
     public Span log(String event) {
-        return null;
+        delegate.annotate(event);
+        return this;
     }
 
     /**
@@ -122,7 +128,8 @@ public class BraveSpan implements Span {
      */
     @Override
     public Span log(long timestampMicroseconds, String event) {
-        return null;
+        delegate.annotate(timestampMicroseconds, event);
+        return this;
     }
 
     /**
@@ -130,7 +137,8 @@ public class BraveSpan implements Span {
      */
     @Override
     public Span setBaggageItem(String key, String value) {
-        return null;
+        // brave does not support baggage
+        return this;
     }
 
     /**
@@ -138,6 +146,7 @@ public class BraveSpan implements Span {
      */
     @Override
     public String getBaggageItem(String key) {
+        // brave does not support baggage
         return null;
     }
 
@@ -146,22 +155,23 @@ public class BraveSpan implements Span {
      */
     @Override
     public Span setOperationName(String operationName) {
-        return null;
+        delegate.name(operationName);
+        return this;
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public Span log(String eventName, Object payload) {
-        return null;
+    public Span log(String eventName, Object ignored) {
+        return log(eventName);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public Span log(long timestampMicroseconds, String eventName, Object payload) {
-        return null;
+    public Span log(long timestampMicroseconds, String eventName, Object ignored) {
+        return log(timestampMicroseconds, eventName);
     }
 }
