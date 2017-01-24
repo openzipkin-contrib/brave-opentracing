@@ -21,10 +21,15 @@ import io.opentracing.Tracer;
 import java.util.Map;
 
 public class BraveSpanBuilder implements Tracer.SpanBuilder {
+
+    private String operationName;
+
+    public BraveSpanBuilder(String operationName) {
+        this.operationName = operationName;
+    }
+
     /**
-     * A shorthand for addReference(References.CHILD_OF, parent).
-     *
-     * @param parent
+     * {@inheritDoc}
      */
     @Override
     public Tracer.SpanBuilder asChildOf(SpanContext parent) {
@@ -32,9 +37,7 @@ public class BraveSpanBuilder implements Tracer.SpanBuilder {
     }
 
     /**
-     * A shorthand for addReference(References.CHILD_OF, parent.context()).
-     *
-     * @param parent
+     * {@inheritDoc}
      */
     @Override
     public Tracer.SpanBuilder asChildOf(Span parent) {
@@ -42,13 +45,7 @@ public class BraveSpanBuilder implements Tracer.SpanBuilder {
     }
 
     /**
-     * Add a reference from the Span being built to a distinct (usually parent) Span. May be called multiple times to
-     * represent multiple such References.
-     *
-     * @param referenceType     the reference type, typically one of the constants defined in References
-     * @param referencedContext the SpanContext being referenced; e.g., for a References.CHILD_OF referenceType, the
-     *                          referencedContext is the parent
-     * @see References
+     * {@inheritDoc}
      */
     @Override
     public Tracer.SpanBuilder addReference(String referenceType, SpanContext referencedContext) {
@@ -56,10 +53,7 @@ public class BraveSpanBuilder implements Tracer.SpanBuilder {
     }
 
     /**
-     * Same as {@link Span#setTag(String, String)}, but for the span being built.
-     *
-     * @param key
-     * @param value
+     * {@inheritDoc}
      */
     @Override
     public Tracer.SpanBuilder withTag(String key, String value) {
@@ -67,10 +61,7 @@ public class BraveSpanBuilder implements Tracer.SpanBuilder {
     }
 
     /**
-     * Same as {@link Span#setTag(String, String)}, but for the span being built.
-     *
-     * @param key
-     * @param value
+     * {@inheritDoc}
      */
     @Override
     public Tracer.SpanBuilder withTag(String key, boolean value) {
@@ -78,10 +69,7 @@ public class BraveSpanBuilder implements Tracer.SpanBuilder {
     }
 
     /**
-     * Same as {@link Span#setTag(String, String)}, but for the span being built.
-     *
-     * @param key
-     * @param value
+     * {@inheritDoc}
      */
     @Override
     public Tracer.SpanBuilder withTag(String key, Number value) {
@@ -89,9 +77,7 @@ public class BraveSpanBuilder implements Tracer.SpanBuilder {
     }
 
     /**
-     * Specify a timestamp of when the Span was started, represented in microseconds since epoch.
-     *
-     * @param microseconds
+     * {@inheritDoc}
      */
     @Override
     public Tracer.SpanBuilder withStartTimestamp(long microseconds) {
@@ -99,7 +85,7 @@ public class BraveSpanBuilder implements Tracer.SpanBuilder {
     }
 
     /**
-     * Returns the started Span.
+     * {@inheritDoc}
      */
     @Override
     public Span start() {
@@ -107,9 +93,7 @@ public class BraveSpanBuilder implements Tracer.SpanBuilder {
     }
 
     /**
-     * @return all zero or more baggage items propagating along with the associated Span
-     * @see Span#setBaggageItem(String, String)
-     * @see Span#getBaggageItem(String)
+     * {@inheritDoc}
      */
     @Override
     public Iterable<Map.Entry<String, String>> baggageItems() {

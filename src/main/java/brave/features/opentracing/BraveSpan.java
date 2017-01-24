@@ -19,12 +19,9 @@ import io.opentracing.SpanContext;
 import java.util.Map;
 
 public class BraveSpan implements Span {
+
     /**
-     * Retrieve the associated SpanContext.
-     * <p>
-     * This may be called at any time, including after calls to finish().
-     *
-     * @return the SpanContext that encapsulates Span state that should propagate across process boundaries.
+     * {@inheritDoc}
      */
     @Override
     public SpanContext context() {
@@ -32,12 +29,7 @@ public class BraveSpan implements Span {
     }
 
     /**
-     * Sets the end timestamp to now and records the span.
-     * <p>
-     * <p>With the exception of calls to Span.context(), this should be the last call made to the span instance, and to
-     * do otherwise leads to undefined behavior.
-     *
-     * @see Span#context()
+     * {@inheritDoc}
      */
     @Override
     public void finish() {
@@ -45,29 +37,23 @@ public class BraveSpan implements Span {
     }
 
     /**
-     * Sets an explicit end timestamp and records the span.
-     * <p>
-     * <p>With the exception of calls to Span.context(), this should be the last call made to the span instance, and to
-     * do otherwise leads to undefined behavior.
-     *
-     * @param finishMicros an explicit finish time, in microseconds since the epoch
-     * @see Span#context()
+     * {@inheritDoc}
      */
     @Override
     public void finish(long finishMicros) {
 
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void close() {
 
     }
 
     /**
-     * Set a key:value tag on the Span.
-     *
-     * @param key
-     * @param value
+     * {@inheritDoc}
      */
     @Override
     public Span setTag(String key, String value) {
@@ -75,10 +61,7 @@ public class BraveSpan implements Span {
     }
 
     /**
-     * Same as {@link #setTag(String, String)}, but for boolean values.
-     *
-     * @param key
-     * @param value
+     * {@inheritDoc}
      */
     @Override
     public Span setTag(String key, boolean value) {
@@ -86,10 +69,7 @@ public class BraveSpan implements Span {
     }
 
     /**
-     * Same as {@link #setTag(String, String)}, but for numeric values.
-     *
-     * @param key
-     * @param value
+     * {@inheritDoc}
      */
     @Override
     public Span setTag(String key, Number value) {
@@ -97,25 +77,7 @@ public class BraveSpan implements Span {
     }
 
     /**
-     * Log key:value pairs to the Span with the current walltime timestamp.
-     * <p>
-     * <p><strong>CAUTIONARY NOTE:</strong> not all Tracer implementations support key:value log fields end-to-end.
-     * Caveat emptor.
-     * <p>
-     * <p>A contrived example (using Guava, which is not required):
-     * <pre>{@code
-     * span.log(
-     * ImmutableMap.Builder<String, Object>()
-     * .put("event", "soft error")
-     * .put("type", "cache timeout")
-     * .put("waited.millis", 1500)
-     * .build());
-     * }</pre>
-     *
-     * @param fields key:value log fields. Tracer implementations should support String, numeric, and boolean values;
-     *               some may also support arbitrary Objects.
-     * @return the Span, for chaining
-     * @see Span#log(String)
+     * {@inheritDoc}
      */
     @Override
     public Span log(Map<String, ?> fields) {
@@ -123,17 +85,7 @@ public class BraveSpan implements Span {
     }
 
     /**
-     * Like log(Map&lt;String, Object&gt;), but with an explicit timestamp.
-     * <p>
-     * <p><strong>CAUTIONARY NOTE:</strong> not all Tracer implementations support key:value log fields end-to-end.
-     * Caveat emptor.
-     *
-     * @param timestampMicroseconds The explicit timestamp for the log record. Must be greater than or equal to the
-     *                              Span's start timestamp.
-     * @param fields                key:value log fields. Tracer implementations should support String, numeric, and boolean values;
-     *                              some may also support arbitrary Objects.
-     * @return the Span, for chaining
-     * @see Span#log(long, String)
+     * {@inheritDoc}
      */
     @Override
     public Span log(long timestampMicroseconds, Map<String, ?> fields) {
@@ -141,16 +93,7 @@ public class BraveSpan implements Span {
     }
 
     /**
-     * Record an event at the current walltime timestamp.
-     * <p>
-     * Shorthand for
-     * <p>
-     * <pre>{@code
-     * span.log(Collections.singletonMap("event", event));
-     * }</pre>
-     *
-     * @param event the event value; often a stable identifier for a moment in the Span lifecycle
-     * @return the Span, for chaining
+     * {@inheritDoc}
      */
     @Override
     public Span log(String event) {
@@ -158,18 +101,7 @@ public class BraveSpan implements Span {
     }
 
     /**
-     * Record an event at a specific timestamp.
-     * <p>
-     * Shorthand for
-     * <p>
-     * <pre>{@code
-     * span.log(timestampMicroseconds, Collections.singletonMap("event", event));
-     * }</pre>
-     *
-     * @param timestampMicroseconds The explicit timestamp for the log record. Must be greater than or equal to the
-     *                              Span's start timestamp.
-     * @param event                 the event value; often a stable identifier for a moment in the Span lifecycle
-     * @return the Span, for chaining
+     * {@inheritDoc}
      */
     @Override
     public Span log(long timestampMicroseconds, String event) {
@@ -177,19 +109,7 @@ public class BraveSpan implements Span {
     }
 
     /**
-     * Sets a baggage item in the Span (and its SpanContext) as a key/value pair.
-     * <p>
-     * Baggage enables powerful distributed context propagation functionality where arbitrary application data can be
-     * carried along the full path of request execution throughout the system.
-     * <p>
-     * Note 1: Baggage is only propagated to the future (recursive) children of this SpanContext.
-     * <p>
-     * Note 2: Baggage is sent in-band with every subsequent local and remote calls, so this feature must be used with
-     * care.
-     *
-     * @param key
-     * @param value
-     * @return this Span instance, for chaining
+     * {@inheritDoc}
      */
     @Override
     public Span setBaggageItem(String key, String value) {
@@ -197,8 +117,7 @@ public class BraveSpan implements Span {
     }
 
     /**
-     * @param key
-     * @return the value of the baggage item identified by the given key, or null if no such item could be found
+     * {@inheritDoc}
      */
     @Override
     public String getBaggageItem(String key) {
@@ -206,10 +125,7 @@ public class BraveSpan implements Span {
     }
 
     /**
-     * Sets the string name for the logical operation this span represents.
-     *
-     * @param operationName
-     * @return this Span instance, for chaining
+     * {@inheritDoc}
      */
     @Override
     public Span setOperationName(String operationName) {
@@ -217,12 +133,7 @@ public class BraveSpan implements Span {
     }
 
     /**
-     * @param eventName
-     * @param payload
-     * @deprecated use {@link #log(Map)} like this
-     * {@code span.log(Map.of("event", "timeout"))}
-     * or
-     * {@code span.log(timestampMicroseconds, Map.of("event", "exception", "payload", stackTrace))}
+     * {@inheritDoc}
      */
     @Override
     public Span log(String eventName, Object payload) {
@@ -230,13 +141,7 @@ public class BraveSpan implements Span {
     }
 
     /**
-     * @param timestampMicroseconds
-     * @param eventName
-     * @param payload
-     * @deprecated use {@link #log(Map)} like this
-     * {@code span.log(timestampMicroseconds, Map.of("event", "timeout"))}
-     * or
-     * {@code span.log(timestampMicroseconds, Map.of("event", "exception", "payload", stackTrace))}
+     * {@inheritDoc}
      */
     @Override
     public Span log(long timestampMicroseconds, String eventName, Object payload) {
