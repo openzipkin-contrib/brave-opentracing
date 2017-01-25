@@ -122,8 +122,11 @@ public class BraveSpanBuilder implements Tracer.SpanBuilder {
     }
 
     /**
-     * {@inheritDoc}
+     * Returns zero values as neither <a href="https://github.com/openzipkin/b3-propagation">B3</a>
+     * nor Brave include baggage support.
      */
+    // OpenTracing could one day define a way to plug-in arbitrary baggage handling similar to how
+    // it has feature-specific apis like active-span
     @Override
     public Iterable<Map.Entry<String, String>> baggageItems() {
         // brave doesn't support baggage

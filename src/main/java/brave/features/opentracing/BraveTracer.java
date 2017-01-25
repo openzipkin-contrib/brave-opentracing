@@ -17,8 +17,6 @@ import brave.internal.Nullable;
 import brave.propagation.Propagation;
 import brave.propagation.TraceContext;
 import brave.propagation.TraceContextOrSamplingFlags;
-import com.github.kristofa.brave.Brave;
-import com.github.kristofa.brave.TracerAdapter;
 import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
 import io.opentracing.propagation.Format;
@@ -36,7 +34,6 @@ public class BraveTracer implements Tracer {
     static final TraceContext.Extractor<TextMapView> EXTRACTOR = Propagation.B3_STRING.extractor(TextMapView::get);
 
     private brave.Tracer brave4;
-    private Brave brave3; // Not sure if I need this or not. Might want to attach to the local tracer context
 
     public static BraveTracer wrap(brave.Tracer brave4) {
         if (brave4 == null) throw new NullPointerException("brave tracer == null");
@@ -45,7 +42,6 @@ public class BraveTracer implements Tracer {
 
     private BraveTracer(brave.Tracer brave4) {
         this.brave4 = brave4;
-        this.brave3 = TracerAdapter.newBrave(this.brave4);
     }
 
     /**
