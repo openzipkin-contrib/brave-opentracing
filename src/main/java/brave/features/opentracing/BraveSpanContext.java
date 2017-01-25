@@ -24,9 +24,11 @@ public class BraveSpanContext implements SpanContext {
     private TraceContext traceContext;
 
     static BraveSpanContext wrap(TraceContext traceContext) {
-        BraveSpanContext context = new BraveSpanContext();
-        context.traceContext = traceContext;
-        return context;
+        return new BraveSpanContext(traceContext);
+    }
+
+    private BraveSpanContext(TraceContext traceContext) {
+        this.traceContext = traceContext;
     }
 
     final TraceContext unwrap() {
