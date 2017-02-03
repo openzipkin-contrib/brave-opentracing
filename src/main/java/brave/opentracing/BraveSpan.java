@@ -11,26 +11,33 @@
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
-package brave.features.opentracing;
+package brave.opentracing;
 
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
 
+import java.util.Iterator;
 import java.util.Map;
 
-public class BraveSpan implements Span {
+public final class BraveSpan implements Span {
 
+    /**
+     * Converts an existing {@linkplain brave.Span} for use in OpenTracing apis
+     */
     static BraveSpan wrap(brave.Span span) {
         if (span == null) throw new NullPointerException("span == null");
         return new BraveSpan(span);
     }
 
-    final brave.Span unwrap() {
+    /**
+     * Converts an existing {@linkplain brave.Span} for use in OpenTracing apis
+     */
+    public final brave.Span unwrap() {
         return delegate;
     }
 
-    final brave.Span delegate;
-    final SpanContext context;
+    private final brave.Span delegate;
+    private final SpanContext context;
 
     private BraveSpan(brave.Span delegate) {
         this.delegate = delegate;
@@ -101,7 +108,7 @@ public class BraveSpan implements Span {
     public Span log(Map<String, ?> fields) {
         if (fields.isEmpty()) return this;
         // in real life, do like zipkin-go-opentracing: "key1=value1 key2=value2"
-        return log(fields.toString());
+        return log(toAnnotation(fields));
     }
 
     /**
@@ -111,7 +118,30 @@ public class BraveSpan implements Span {
     public Span log(long timestampMicroseconds, Map<String, ?> fields) {
         if (fields.isEmpty()) return this;
         // in real life, do like zipkin-go-opentracing: "key1=value1 key2=value2"
-        return log(timestampMicroseconds, fields.toString());
+        return log(timestampMicroseconds, toAnnotation(fields));
+    }
+
+    /**
+     * Converts a map to a string of form: "key1=value1 key2=value2"
+     */
+    static String toAnnotation(Map<String, ?> fields) {
+        // special-case the "event" field which is similar to the semantics of a zipkin annotation
+        Object event = fields.get("event");
+        if (event != null && fields.size() == 1) return event.toString();
+
+        return joinOnEqualsSpace(fields);
+    }
+
+    static String joinOnEqualsSpace(Map<String, ?> fields) {
+        if (fields.isEmpty()) return "";
+
+        StringBuilder result = new StringBuilder();
+        for (Iterator<? extends Map.Entry<String, ?>> i = fields.entrySet().iterator(); i.hasNext(); ) {
+            Map.Entry<String, ?> next = i.next();
+            result.append(next.getKey()).append('=').append(next.getValue());
+            if (i.hasNext()) result.append(' ');
+        }
+        return result.toString();
     }
 
     /**
@@ -130,6 +160,22 @@ public class BraveSpan implements Span {
     public Span log(long timestampMicroseconds, String event) {
         delegate.annotate(timestampMicroseconds, event);
         return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Span log(String eventName, Object ignored) {
+        return log(eventName);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Span log(long timestampMicroseconds, String eventName, Object ignored) {
+        return log(timestampMicroseconds, eventName);
     }
 
     /**
@@ -162,21 +208,5 @@ public class BraveSpan implements Span {
     public Span setOperationName(String operationName) {
         delegate.name(operationName);
         return this;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public Span log(String eventName, Object ignored) {
-        return log(eventName);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    public Span log(long timestampMicroseconds, String eventName, Object ignored) {
-        return log(timestampMicroseconds, eventName);
     }
 }

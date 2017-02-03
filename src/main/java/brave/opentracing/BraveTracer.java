@@ -11,7 +11,7 @@
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
-package brave.features.opentracing;
+package brave.opentracing;
 
 import brave.internal.Nullable;
 import brave.propagation.Propagation;
@@ -27,14 +27,28 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-public class BraveTracer implements Tracer {
+/**
+ * Using a tracer, you can create a spans, inject span contexts into a transport, and extract span contexts from a
+ * transport
+ *
+ * Here's an example:
+ * <pre></pre>
+ *
+ * @see BraveSpan
+ * @see Propagation
+ */
+public final class BraveTracer implements Tracer {
 
     static final List<String> PROPAGATION_KEYS = Propagation.B3_STRING.keys();
     static final TraceContext.Injector<TextMap> INJECTOR = Propagation.B3_STRING.injector(TextMap::put);
     static final TraceContext.Extractor<TextMapView> EXTRACTOR = Propagation.B3_STRING.extractor(TextMapView::get);
 
-    private brave.Tracer brave4;
+    private final brave.Tracer brave4;
 
+    /**
+     * Returns an implementation of {@linkplain io.opentracing.Tracer} which delegates
+     * the the provided Brave Tracer.
+     */
     public static BraveTracer wrap(brave.Tracer brave4) {
         if (brave4 == null) throw new NullPointerException("brave tracer == null");
         return new BraveTracer(brave4);
@@ -53,7 +67,7 @@ public class BraveTracer implements Tracer {
     }
 
     /**
-     * {@inheritDoc}
+     * Injects the underlying context using B3 encoding.
      */
     @Override
     public <C> void inject(SpanContext spanContext, Format<C> format, C carrier) {
@@ -65,7 +79,8 @@ public class BraveTracer implements Tracer {
     }
 
     /**
-     * {@inheritDoc}
+     * Extracts the underlying context using B3 encoding.
+     * A new trace context is provisioned when there is no B3-encoded context in the carrier, or upon error extracting it.
      */
     @Override
     public <C> SpanContext extract(Format<C> format, C carrier) {

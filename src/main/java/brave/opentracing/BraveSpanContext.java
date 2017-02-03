@@ -11,7 +11,7 @@
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
-package brave.features.opentracing;
+package brave.opentracing;
 
 import brave.propagation.TraceContext;
 import io.opentracing.SpanContext;
@@ -19,24 +19,35 @@ import io.opentracing.SpanContext;
 import java.util.Collections;
 import java.util.Map;
 
-public class BraveSpanContext implements SpanContext {
+/**
+ * Holds the {@linkplain TraceContext} used by the underlying {@linkplain brave.Tracer}. An
+ * {@link TraceContext#sampled() unsampled} context results in a {@link opentracing...NoopSpan}.
+ *
+ * <p>This type also includes hooks to integrate with the underlying {@linkplain brave.Tracer}.
+ * Ex you can access the underlying trace context with {@link #unwrap}
+ */
+public final class BraveSpanContext implements SpanContext {
 
-    private TraceContext traceContext;
+    private final TraceContext traceContext;
 
     static BraveSpanContext wrap(TraceContext traceContext) {
         return new BraveSpanContext(traceContext);
+    }
+
+    /**
+     * Returns the underlying trace context for use in Brave apis
+     */
+    public TraceContext unwrap() {
+        return traceContext;
     }
 
     private BraveSpanContext(TraceContext traceContext) {
         this.traceContext = traceContext;
     }
 
-    final TraceContext unwrap() {
-        return traceContext;
-    }
-
     /**
-     * {@inheritDoc}
+     * Returns empty as neither <a href="https://github.com/openzipkin/b3-propagation">B3</a>
+     * nor Brave include baggage support.
      */
     @Override
     public Iterable<Map.Entry<String, String>> baggageItems() {

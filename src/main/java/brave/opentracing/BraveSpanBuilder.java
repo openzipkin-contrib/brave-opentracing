@@ -11,7 +11,7 @@
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
-package brave.features.opentracing;
+package brave.opentracing;
 
 import brave.propagation.TraceContext;
 import io.opentracing.References;
@@ -23,17 +23,16 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-public class BraveSpanBuilder implements Tracer.SpanBuilder {
+public final class BraveSpanBuilder implements Tracer.SpanBuilder {
 
-    private brave.Tracer brave;
-
-    private String operationName;
+    private final brave.Tracer brave;
     private final Map<String, String> tags = new LinkedHashMap<>();
 
-    long timestamp;
+    private String operationName;
+    private long timestamp;
     private TraceContext parent;
 
-    public BraveSpanBuilder(brave.Tracer brave, String operationName) {
+    BraveSpanBuilder(brave.Tracer brave, String operationName) {
         this.brave = brave;
         this.operationName = operationName;
     }

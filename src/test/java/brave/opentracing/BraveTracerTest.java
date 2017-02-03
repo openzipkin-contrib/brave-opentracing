@@ -11,7 +11,7 @@
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
-package brave.features.opentracing;
+package brave.opentracing;
 
 import brave.Tracer;
 import brave.propagation.TraceContext;
@@ -34,7 +34,8 @@ import static zipkin.internal.Util.UTF_8;
  * This shows how one might make an OpenTracing adapter for Brave, and how to navigate in and out
  * of the core concepts.
  */
-public class OpenTracingAdapterTest {
+public class BraveTracerTest {
+
     List<zipkin.Span> spans = new ArrayList<>();
     Tracer brave = Tracer.newBuilder().reporter(spans::add).build();
     BraveTracer opentracing = BraveTracer.wrap(brave);
