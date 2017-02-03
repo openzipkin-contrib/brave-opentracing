@@ -23,6 +23,11 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+/**
+ * Uses by the underlying {@linkplain brave.Tracer} to create a {@linkplain BraveSpan} wrapped {@linkplain brave.Span}
+ *
+ * Brave does not support multiple parents so this has been implemented to use the first parent defined.
+ */
 public final class BraveSpanBuilder implements Tracer.SpanBuilder {
 
     private final brave.Tracer brave;
@@ -105,7 +110,7 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
      * {@inheritDoc}
      */
     @Override
-    public Span start() {
+    public BraveSpan start() {
         brave.Span span = parent == null ? brave.newTrace() : brave.newChild(parent);
         if (operationName != null) span.name(operationName);
         for (Map.Entry<String, String> tag : tags.entrySet()) {

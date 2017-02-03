@@ -19,6 +19,12 @@ import io.opentracing.SpanContext;
 import java.util.Iterator;
 import java.util.Map;
 
+/**
+ * Holds the {@linkplain brave.Span} used by the underlying {@linkplain brave.Tracer}.\
+ *
+ * <p>This type also includes hooks to integrate with the underlying {@linkplain brave.Tracer}.
+ * Ex you can access the underlying span with {@link #unwrap}
+ */
 public final class BraveSpan implements Span {
 
     /**
