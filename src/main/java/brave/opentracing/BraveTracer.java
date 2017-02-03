@@ -32,7 +32,17 @@ import java.util.Map;
  * transport
  *
  * Here's an example:
- * <pre></pre>
+ * <pre>
+ *     Tracer tracer = BraveTracer.wrap(brave4);
+ *
+ *     Span span = tracer.buildSpan("DoWork").start();
+ *     tracer.inject(span.context());
+ *
+ *     ...
+ *
+ *     SpanContext clientContext = tracer.extract(Format.Builtin.HTTP_HEADERS, request.getHeaders());
+ *     Span clientSpan = tracer.buildSpan('...').asChildOf(clientContext).start();
+ * </pre>
  *
  * @see BraveSpan
  * @see Propagation
