@@ -79,7 +79,7 @@ public final class BraveSpan implements Span {
      */
     @Override
     public void close() {
-        delegate.close();
+        delegate.finish();
     }
 
     /**
