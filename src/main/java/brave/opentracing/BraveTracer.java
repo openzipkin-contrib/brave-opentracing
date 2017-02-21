@@ -26,6 +26,9 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.HashSet;
+
 
 /**
  * Using a tracer, you can create a spans, inject span contexts into a transport, and extract span contexts from a
@@ -108,30 +111,31 @@ public final class BraveTracer implements Tracer {
 
     /**
      * Eventhough TextMap is named like Map, it doesn't have a retrieve-by-key method
+     * Lookups will be case insensitive
      */
     static final class TextMapView {
         final Iterator<Map.Entry<String, String>> input;
         final Map<String, String> cache = new LinkedHashMap<>();
-        final List<String> fields;
+        final Set<String> fields;
 
         TextMapView(List<String> fields, TextMap input) {
-            this.fields = fields;
             this.input = input.iterator();
+            this.fields = new HashSet<String>();
+            for (String f : fields) {
+                this.fields.add(f.toLowerCase());
+            }
         }
 
         @Nullable
         String get(String key) {
-            String result = cache.get(key);
-            if (result != null) return result;
             while (input.hasNext()) {
                 Map.Entry<String, String> next = input.next();
-                if (next.getKey().equals(key)) {
-                    return next.getValue();
-                } else if (fields.contains(next.getKey())) {
-                    cache.put(next.getKey(), next.getValue());
+                String inputKey = next.getKey().toLowerCase();
+                if (fields.contains(inputKey)) {
+                    cache.put(inputKey, next.getValue());
                 }
             }
-            return null;
+            return cache.get(key.toLowerCase());
         }
     }
 }
