@@ -55,6 +55,7 @@ public final class BraveTracer implements Tracer {
     static final List<String> PROPAGATION_KEYS = Propagation.B3_STRING.keys();
     static final TraceContext.Injector<TextMap> INJECTOR = Propagation.B3_STRING.injector(TextMap::put);
     static final TraceContext.Extractor<TextMapView> EXTRACTOR = Propagation.B3_STRING.extractor(TextMapView::get);
+    static final Set<String> FIELDS_LOWER_CASE = buildHashSetLowerCase(PROPAGATION_KEYS);
 
     private final brave.Tracer brave4;
 
@@ -101,13 +102,20 @@ public final class BraveTracer implements Tracer {
             throw new UnsupportedOperationException(format.toString() + " != Format.Builtin.HTTP_HEADERS");
         }
         TraceContextOrSamplingFlags result =
-                EXTRACTOR.extract(new TextMapView(PROPAGATION_KEYS, (TextMap) carrier));
+                EXTRACTOR.extract(new TextMapView(FIELDS_LOWER_CASE, (TextMap) carrier));
         TraceContext context = result.context() != null
                 ? result.context().toBuilder().shared(true).build()
                 : brave4.newTrace(result.samplingFlags()).context();
         return BraveSpanContext.wrap(context);
     }
 
+    static Set<String> buildHashSetLowerCase(List<String> fields) {
+        Set<String> lcSet = new HashSet<String>();
+        for (String f : fields) {
+            lcSet.add(f.toLowerCase());
+        }
+        return lcSet;
+    }
 
     /**
      * Eventhough TextMap is named like Map, it doesn't have a retrieve-by-key method
@@ -118,12 +126,9 @@ public final class BraveTracer implements Tracer {
         final Map<String, String> cache = new LinkedHashMap<>();
         final Set<String> fields;
 
-        TextMapView(List<String> fields, TextMap input) {
+        TextMapView(Set<String> fields, TextMap input) {
             this.input = input.iterator();
-            this.fields = new HashSet<String>();
-            for (String f : fields) {
-                this.fields.add(f.toLowerCase());
-            }
+            this.fields = fields;
         }
 
         @Nullable
