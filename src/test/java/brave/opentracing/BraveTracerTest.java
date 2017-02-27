@@ -85,6 +85,25 @@ public class BraveTracerTest {
     }
 
     @Test
+    public void extractTraceContextCaseInsensitive() throws Exception {
+        Map<String, String> map = new LinkedHashMap<>();
+        map.put("X-B3-TraceId", "0000000000000001");
+        map.put("x-b3-spanid", "0000000000000002");
+        map.put("x-b3-SaMpLeD", "1");
+        map.put("other", "1");
+
+        BraveSpanContext openTracingContext =
+                (BraveSpanContext) opentracing.extract(Format.Builtin.HTTP_HEADERS, new TextMapExtractAdapter(map));
+
+        assertThat(openTracingContext.unwrap())
+                .isEqualTo(TraceContext.newBuilder()
+                        .traceId(1L)
+                        .spanId(2L)
+                        .shared(true)
+                        .sampled(true).build());
+    }
+
+    @Test
     public void injectTraceContext() throws Exception {
         TraceContext context = TraceContext.newBuilder()
                 .traceId(1L)
