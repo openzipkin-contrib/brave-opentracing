@@ -85,8 +85,9 @@ public final class BraveTracer implements Tracer {
      */
     @Override
     public <C> void inject(SpanContext spanContext, Format<C> format, C carrier) {
-        if (format != Format.Builtin.HTTP_HEADERS) {
-            throw new UnsupportedOperationException(format.toString() + " != Format.Builtin.HTTP_HEADERS");
+        if (format != Format.Builtin.HTTP_HEADERS && format != Format.Builtin.TEXT_MAP) {
+            throw new UnsupportedOperationException(format.toString()
+                + " != Format.Builtin.HTTP_HEADERS or Format.Builtin.TEXT_MAP");
         }
         TraceContext traceContext = ((BraveSpanContext) spanContext).unwrap();
         INJECTOR.inject(traceContext, (TextMap) carrier);
@@ -98,8 +99,9 @@ public final class BraveTracer implements Tracer {
      */
     @Override
     public <C> SpanContext extract(Format<C> format, C carrier) {
-        if (format != Format.Builtin.HTTP_HEADERS) {
-            throw new UnsupportedOperationException(format.toString() + " != Format.Builtin.HTTP_HEADERS");
+        if (format != Format.Builtin.HTTP_HEADERS && format != Format.Builtin.TEXT_MAP) {
+            throw new UnsupportedOperationException(format.toString()
+                + " != Format.Builtin.HTTP_HEADERS or Format.Builtin.TEXT_MAP");
         }
         TraceContextOrSamplingFlags result =
                 EXTRACTOR.extract(new TextMapView(FIELDS_LOWER_CASE, (TextMap) carrier));
