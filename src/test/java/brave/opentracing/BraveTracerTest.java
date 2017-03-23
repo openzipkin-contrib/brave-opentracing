@@ -85,6 +85,24 @@ public class BraveTracerTest {
     }
 
     @Test
+    public void extractTraceContextTextMap() throws Exception {
+        Map<String, String> map = new LinkedHashMap<>();
+        map.put("X-B3-TraceId", "0000000000000001");
+        map.put("X-B3-SpanId", "0000000000000002");
+        map.put("X-B3-Sampled", "1");
+
+        BraveSpanContext openTracingContext =
+                (BraveSpanContext) opentracing.extract(Format.Builtin.TEXT_MAP, new TextMapExtractAdapter(map));
+
+        assertThat(openTracingContext.unwrap())
+                .isEqualTo(TraceContext.newBuilder()
+                        .traceId(1L)
+                        .spanId(2L)
+                        .shared(true)
+                        .sampled(true).build());
+    }
+
+    @Test
     public void extractTraceContextCaseInsensitive() throws Exception {
         Map<String, String> map = new LinkedHashMap<>();
         map.put("X-B3-TraceId", "0000000000000001");
@@ -113,6 +131,24 @@ public class BraveTracerTest {
         Map<String, String> map = new LinkedHashMap<>();
         TextMapInjectAdapter carrier = new TextMapInjectAdapter(map);
         opentracing.inject(BraveSpanContext.wrap(context), Format.Builtin.HTTP_HEADERS, carrier);
+
+        assertThat(map).containsExactly(
+                entry("X-B3-TraceId", "0000000000000001"),
+                entry("X-B3-SpanId", "0000000000000002"),
+                entry("X-B3-Sampled", "1")
+        );
+    }
+
+    @Test
+    public void injectTraceContextTextMap() throws Exception {
+        TraceContext context = TraceContext.newBuilder()
+                .traceId(1L)
+                .spanId(2L)
+                .sampled(true).build();
+
+        Map<String, String> map = new LinkedHashMap<>();
+        TextMapInjectAdapter carrier = new TextMapInjectAdapter(map);
+        opentracing.inject(BraveSpanContext.wrap(context), Format.Builtin.TEXT_MAP, carrier);
 
         assertThat(map).containsExactly(
                 entry("X-B3-TraceId", "0000000000000001"),
