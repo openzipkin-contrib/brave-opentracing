@@ -13,11 +13,12 @@
  */
 package brave.opentracing;
 
-import io.opentracing.Span;
-import io.opentracing.SpanContext;
-
 import java.util.Iterator;
 import java.util.Map;
+
+import io.opentracing.Span;
+import io.opentracing.SpanContext;
+import io.opentracing.tag.Tags;
 
 /**
  * Holds the {@linkplain brave.Span} used by the underlying {@linkplain brave.Tracer}.\
@@ -88,6 +89,12 @@ public final class BraveSpan implements Span {
     @Override
     public Span setTag(String key, String value) {
         delegate.tag(key, value);
+
+        if (Tags.SPAN_KIND.getKey().equals(key) && Tags.SPAN_KIND_CLIENT.equals(value)) {
+            delegate.kind(brave.Span.Kind.CLIENT);
+        } else if (Tags.SPAN_KIND.getKey().equals(key) && Tags.SPAN_KIND_SERVER.equals(value)) {
+            delegate.kind(brave.Span.Kind.SERVER);
+        }
         return this;
     }
 
