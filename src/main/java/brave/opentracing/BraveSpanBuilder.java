@@ -13,15 +13,16 @@
  */
 package brave.opentracing;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 import brave.propagation.TraceContext;
 import io.opentracing.References;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
-
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import io.opentracing.tag.Tags;
 
 /**
  * Uses by the underlying {@linkplain brave.Tracer} to create a {@linkplain BraveSpan} wrapped {@linkplain brave.Span}
@@ -30,15 +31,15 @@ import java.util.Map;
  */
 public final class BraveSpanBuilder implements Tracer.SpanBuilder {
 
-    private final brave.Tracer brave;
+    private final brave.Tracer braveTracer;
     private final Map<String, String> tags = new LinkedHashMap<>();
 
     private String operationName;
     private long timestamp;
     private TraceContext parent;
 
-    BraveSpanBuilder(brave.Tracer brave, String operationName) {
-        this.brave = brave;
+    BraveSpanBuilder(brave.Tracer braveTracer, String operationName) {
+        this.braveTracer = braveTracer;
         this.operationName = operationName;
     }
 
@@ -78,6 +79,7 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
     @Override
     public Tracer.SpanBuilder withTag(String key, String value) {
         tags.put(key, value);
+
         return this;
     }
 
@@ -111,10 +113,16 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
      */
     @Override
     public BraveSpan start() {
-        brave.Span span = parent == null ? brave.newTrace() : brave.newChild(parent);
+        brave.Span span = parent == null ? braveTracer.newTrace() : braveTracer.newChild(parent);
         if (operationName != null) span.name(operationName);
         for (Map.Entry<String, String> tag : tags.entrySet()) {
             span.tag(tag.getKey(), tag.getValue());
+
+            if (Tags.SPAN_KIND.getKey().equals(tag.getKey()) && Tags.SPAN_KIND_CLIENT.equals(tag.getValue())) {
+                span.kind(brave.Span.Kind.CLIENT);
+            } else if (Tags.SPAN_KIND.getKey().equals(tag.getKey()) && Tags.SPAN_KIND_SERVER.equals(tag.getValue())) {
+                span.kind(brave.Span.Kind.SERVER);
+            }
         }
         brave.Span result;
         if (timestamp != 0) {
