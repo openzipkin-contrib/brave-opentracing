@@ -113,7 +113,9 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
      */
     @Override
     public BraveSpan start() {
-        brave.Span span = parent == null ? braveTracer.newTrace() : braveTracer.newChild(parent);
+        brave.Span span = parent == null ? braveTracer.newTrace() :
+                parent.shared() ? braveTracer.joinSpan(parent) : braveTracer.newChild(parent);
+
         if (operationName != null) span.name(operationName);
         for (Map.Entry<String, String> tag : tags.entrySet()) {
             span.tag(tag.getKey(), tag.getValue());
