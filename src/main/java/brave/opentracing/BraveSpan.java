@@ -48,7 +48,7 @@ public final class BraveSpan implements Span {
 
     private BraveSpan(brave.Span delegate) {
         this.delegate = delegate;
-        this.context = BraveSpanContext.wrap(delegate.context());
+        this.context = BraveSpanContext.wrap(delegate.context().toBuilder().shared(false).build());
     }
 
     /**

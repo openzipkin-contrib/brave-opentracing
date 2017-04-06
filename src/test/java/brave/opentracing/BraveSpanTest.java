@@ -16,7 +16,7 @@ package brave.opentracing;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -98,20 +98,26 @@ public class BraveSpanTest {
             .withTag(Tags.SPAN_KIND.getKey(), Tags.SPAN_KIND_CLIENT)
             .start();
 
-    Map<String, String> carrier = new HashMap<>();
+    Map<String, String> carrier = new LinkedHashMap<>();
     tracer.inject(spanClient.context(), Format.Builtin.TEXT_MAP, new TextMapInjectAdapter(carrier));
     SpanContext extractedContext = tracer.extract(Format.Builtin.TEXT_MAP, new TextMapExtractAdapter(carrier));
 
-    tracer.buildSpan("foo")
+    Span spanServer = tracer.buildSpan("foo")
             .asChildOf(extractedContext)
             .withTag(Tags.SPAN_KIND.getKey(), Tags.SPAN_KIND_SERVER)
+            .start();
+
+    tracer.buildSpan("bar")
+            .asChildOf(spanServer)
             .start()
             .finish();
 
+    spanServer.finish();
     spanClient.finish();
 
-    assertThat(spans).hasSize(2);
-    assertThat(spans.get(0).traceId).isEqualTo(spans.get(1).traceId);
-    assertThat(spans.get(0).id).isEqualTo(spans.get(1).id);
+    assertThat(spans).hasSize(3);
+    assertThat(spans.get(0).traceId).isEqualTo(spans.get(1).traceId).isEqualTo(spans.get(2).traceId);
+    assertThat(spans.get(1).id).isEqualTo(spans.get(2).id);
+    assertThat(spans.get(0).id).isNotEqualTo(spans.get(1).id);
   }
 }
