@@ -16,12 +16,18 @@ package brave.opentracing;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.Test;
 
 import brave.Tracer;
 import io.opentracing.Span;
+import io.opentracing.SpanContext;
+import io.opentracing.propagation.Format;
+import io.opentracing.propagation.TextMapExtractAdapter;
+import io.opentracing.propagation.TextMapInjectAdapter;
 import io.opentracing.tag.Tags;
 import zipkin.Constants;
 
@@ -85,5 +91,27 @@ public class BraveSpanTest {
     assertThat(spans).hasSize(1);
     assertThat(spans.get(0).annotations.get(0).value).isEqualTo(Constants.SERVER_RECV);
     assertThat(spans.get(0).annotations.get(1).value).isEqualTo(Constants.SERVER_SEND);
+  }
+
+  @Test public void shareSpanWhenParentIsExtracted() {
+    Span spanClient = tracer.buildSpan("foo")
+            .withTag(Tags.SPAN_KIND.getKey(), Tags.SPAN_KIND_CLIENT)
+            .start();
+
+    Map<String, String> carrier = new HashMap<>();
+    tracer.inject(spanClient.context(), Format.Builtin.TEXT_MAP, new TextMapInjectAdapter(carrier));
+    SpanContext extractedContext = tracer.extract(Format.Builtin.TEXT_MAP, new TextMapExtractAdapter(carrier));
+
+    tracer.buildSpan("foo")
+            .asChildOf(extractedContext)
+            .withTag(Tags.SPAN_KIND.getKey(), Tags.SPAN_KIND_SERVER)
+            .start()
+            .finish();
+
+    spanClient.finish();
+
+    assertThat(spans).hasSize(2);
+    assertThat(spans.get(0).traceId).isEqualTo(spans.get(1).traceId);
+    assertThat(spans.get(0).id).isEqualTo(spans.get(1).id);
   }
 }
