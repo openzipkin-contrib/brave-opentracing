@@ -80,7 +80,6 @@ public class BraveTracerTest {
                 .isEqualTo(TraceContext.newBuilder()
                         .traceId(1L)
                         .spanId(2L)
-                        .shared(true)
                         .sampled(true).build());
     }
 
@@ -98,7 +97,6 @@ public class BraveTracerTest {
                 .isEqualTo(TraceContext.newBuilder()
                         .traceId(1L)
                         .spanId(2L)
-                        .shared(true)
                         .sampled(true).build());
     }
 
@@ -117,7 +115,6 @@ public class BraveTracerTest {
                 .isEqualTo(TraceContext.newBuilder()
                         .traceId(1L)
                         .spanId(2L)
-                        .shared(true)
                         .sampled(true).build());
     }
 

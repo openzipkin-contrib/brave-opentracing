@@ -14,12 +14,14 @@
 package brave.opentracing;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.junit.Before;
 import org.junit.Test;
 
 import brave.Tracer;
@@ -30,17 +32,30 @@ import io.opentracing.propagation.TextMapExtractAdapter;
 import io.opentracing.propagation.TextMapInjectAdapter;
 import io.opentracing.tag.Tags;
 import zipkin.Constants;
+import zipkin.DependencyLink;
+import zipkin.storage.InMemoryStorage;
+import zipkin.storage.QueryRequest;
 
 public class BraveSpanTest {
-  List<zipkin.Span> spans = new ArrayList();
-  BraveTracer tracer = BraveTracer.wrap(Tracer.newBuilder().reporter(spans::add).build());
+  InMemoryStorage zipkin = new InMemoryStorage();
+  BraveTracer tracer = BraveTracer.wrap(
+      Tracer.newBuilder()
+          .localServiceName("tracer")
+          .reporter(s -> zipkin.spanConsumer().accept(Collections.singletonList(s))).build()
+  );
+
+  @Before
+  public void clear() {
+    zipkin.clear();
+  }
 
   /** OpenTracing span implements auto-closeable, and implies reporting on close */
   @Test public void autoCloseOnTryFinally() {
     try (Span span = tracer.buildSpan("foo").start()) {
     }
 
-    assertThat(spans).hasSize(1);
+    assertThat(zipkin.spanStore().getTraces(QueryRequest.builder().build()))
+        .hasSize(1);
   }
 
   @Test public void autoCloseOnTryFinally_doesntReportTwice() {
@@ -48,70 +63,87 @@ public class BraveSpanTest {
       span.finish(); // user closes and also auto-close closes
     }
 
-    assertThat(spans).hasSize(1);
+    assertThat(zipkin.spanStore().getTraces(QueryRequest.builder().build()))
+        .hasSize(1);
   }
 
-  @Test public void clientSendRecvFromOTClientTagAtBuilder() {
+  /** Span kind should be set at builder, not after start */
+  @Test public void spanKind_client() {
     tracer.buildSpan("foo")
-            .withTag(Tags.SPAN_KIND.getKey(), Tags.SPAN_KIND_CLIENT)
-            .start().finish();
+        .withTag(Tags.SPAN_KIND.getKey(), Tags.SPAN_KIND_CLIENT)
+        .start().finish();
 
-    assertThat(spans).hasSize(1);
-    assertThat(spans.get(0).annotations.get(0).value).isEqualTo(Constants.CLIENT_SEND);
-    assertThat(spans.get(0).annotations.get(1).value).isEqualTo(Constants.CLIENT_RECV);
+    assertThat(zipkin.spanStore().getTraces(QueryRequest.builder().build()))
+        .flatExtracting(t -> t)
+        .flatExtracting(s -> s.annotations)
+        .extracting(a -> a.value)
+        .containsExactly(Constants.CLIENT_SEND, Constants.CLIENT_RECV);
   }
 
-  @Test public void clientSendRecvFromOTClientTagAtSpan() {
-    Span span = tracer.buildSpan("foo")
-            .start();
-    Tags.SPAN_KIND.set(span, Tags.SPAN_KIND_CLIENT);
+  /** Span kind should be set at builder, not after start */
+  @Test public void spanKind_server() {
+    tracer.buildSpan("foo")
+        .withTag(Tags.SPAN_KIND.getKey(), Tags.SPAN_KIND_SERVER)
+        .start().finish();
+
+    assertThat(zipkin.spanStore().getTraces(QueryRequest.builder().build()))
+        .flatExtracting(t -> t)
+        .flatExtracting(s -> s.annotations)
+        .extracting(a -> a.value)
+        .containsExactly(Constants.SERVER_RECV, Constants.SERVER_SEND);
+  }
+
+  /** Tags end up as string binary annotations */
+  @Test public void startedSpan_setTag() {
+    Span span = tracer.buildSpan("foo").start();
+    span.setTag("hello", "monster");
     span.finish();
 
-    assertThat(spans).hasSize(1);
-    assertThat(spans.get(0).annotations.get(0).value).isEqualTo(Constants.CLIENT_SEND);
-    assertThat(spans.get(0).annotations.get(1).value).isEqualTo(Constants.CLIENT_RECV);
-  }
-
-  @Test public void serverRecvSendFromOTClientTagAtBuilder() {
-    tracer.buildSpan("foo")
-            .withTag(Tags.SPAN_KIND.getKey(), Tags.SPAN_KIND_SERVER)
-            .start().finish();
-
-    assertThat(spans).hasSize(1);
-    assertThat(spans.get(0).annotations.get(0).value).isEqualTo(Constants.SERVER_RECV);
-    assertThat(spans.get(0).annotations.get(1).value).isEqualTo(Constants.SERVER_SEND);
-  }
-
-  @Test public void serverRecvSendFromOTClientTagAtSpan() {
-    Span span = tracer.buildSpan("foo")
-            .start();
-    Tags.SPAN_KIND.set(span, Tags.SPAN_KIND_SERVER);
-    span.finish();
-
-    assertThat(spans).hasSize(1);
-    assertThat(spans.get(0).annotations.get(0).value).isEqualTo(Constants.SERVER_RECV);
-    assertThat(spans.get(0).annotations.get(1).value).isEqualTo(Constants.SERVER_SEND);
+    assertThat(zipkin.spanStore().getTraces(QueryRequest.builder().build()))
+        .flatExtracting(t -> t)
+        .flatExtracting(s -> s.binaryAnnotations)
+        .extracting(b -> b.key, b -> new String(b.value))
+        .containsExactly(tuple("hello", "monster"));
   }
 
   @Test public void shareSpanWhenParentIsExtracted() {
     Span spanClient = tracer.buildSpan("foo")
-            .withTag(Tags.SPAN_KIND.getKey(), Tags.SPAN_KIND_CLIENT)
-            .start();
+        .withTag(Tags.SPAN_KIND.getKey(), Tags.SPAN_KIND_CLIENT)
+        .start();
 
-    Map<String, String> carrier = new HashMap<>();
+    Map<String, String> carrier = new LinkedHashMap<>();
     tracer.inject(spanClient.context(), Format.Builtin.TEXT_MAP, new TextMapInjectAdapter(carrier));
-    SpanContext extractedContext = tracer.extract(Format.Builtin.TEXT_MAP, new TextMapExtractAdapter(carrier));
 
-    tracer.buildSpan("foo")
-            .asChildOf(extractedContext)
-            .withTag(Tags.SPAN_KIND.getKey(), Tags.SPAN_KIND_SERVER)
-            .start()
-            .finish();
+    BraveTracer tracer2 = BraveTracer.wrap(
+        Tracer.newBuilder()
+            .localServiceName("tracer2")
+            .reporter(s -> zipkin.spanConsumer().accept(Collections.singletonList(s))).build()
+    );
 
+    SpanContext extractedContext =
+        tracer2.extract(Format.Builtin.TEXT_MAP, new TextMapExtractAdapter(carrier));
+
+    Span spanServer = tracer2.buildSpan("foo")
+        .asChildOf(extractedContext)
+        .withTag(Tags.SPAN_KIND.getKey(), Tags.SPAN_KIND_SERVER)
+        .start();
+
+    tracer2.buildSpan("bar")
+        .asChildOf(spanServer)
+        .start()
+        .finish();
+
+    spanServer.finish();
     spanClient.finish();
 
-    assertThat(spans).hasSize(2);
-    assertThat(spans.get(0).traceId).isEqualTo(spans.get(1).traceId);
-    assertThat(spans.get(0).id).isEqualTo(spans.get(1).id);
+    List<zipkin.Span> spans = zipkin.spanStore().getRawTraces().get(0);
+    assertThat(spans).hasSize(3);
+    assertThat(spans.get(0).traceId).isEqualTo(spans.get(1).traceId)
+        .isEqualTo(spans.get(2).traceId);
+    assertThat(spans.get(1).id).isEqualTo(spans.get(2).id);
+    assertThat(spans.get(0).id).isNotEqualTo(spans.get(1).id);
+
+    assertThat(zipkin.spanStore().getDependencies(System.currentTimeMillis(), null))
+        .containsExactly(DependencyLink.create("tracer", "tracer2", 1L));
   }
 }
