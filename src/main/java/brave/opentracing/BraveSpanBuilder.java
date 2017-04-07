@@ -25,9 +25,14 @@ import io.opentracing.Tracer;
 import io.opentracing.tag.Tags;
 
 /**
- * Uses by the underlying {@linkplain brave.Tracer} to create a {@linkplain BraveSpan} wrapped {@linkplain brave.Span}
+ * Uses by the underlying {@linkplain brave.Tracer} to create a {@linkplain BraveSpan} wrapped
+ * {@linkplain brave.Span}
  *
- * Brave does not support multiple parents so this has been implemented to use the first parent defined.
+ * <p>Indicate {@link Tags#SPAN_KIND} before calling {@link #start()} to ensure RPC spans are
+ * identified properly.
+ *
+ * <p>Brave does not support multiple parents so this has been implemented to
+ * use the first parent defined.
  */
 public final class BraveSpanBuilder implements Tracer.SpanBuilder {
 
@@ -113,8 +118,19 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
      */
     @Override
     public BraveSpan start() {
-        brave.Span span = parent == null ? braveTracer.newTrace() :
-                parent.shared() ? braveTracer.joinSpan(parent) : braveTracer.newChild(parent);
+        boolean server = Tags.SPAN_KIND_SERVER.equals(tags.get(Tags.SPAN_KIND.getKey()));
+
+        brave.Span span;
+        if (parent == null) {
+            span = braveTracer.newTrace();
+        } else if (server) {
+            // Zipkin's default is to share a span ID between the client and the server in an RPC.
+            // When we start a server span with a parent, we assume the "parent" is actually the
+            // client on the other side of the RPC. Accordingly, we join that span instead of fork.
+            span = braveTracer.joinSpan(parent);
+        } else {
+            span = braveTracer.newChild(parent);
+        }
 
         if (operationName != null) span.name(operationName);
         for (Map.Entry<String, String> tag : tags.entrySet()) {
@@ -122,7 +138,7 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
 
             if (Tags.SPAN_KIND.getKey().equals(tag.getKey()) && Tags.SPAN_KIND_CLIENT.equals(tag.getValue())) {
                 span.kind(brave.Span.Kind.CLIENT);
-            } else if (Tags.SPAN_KIND.getKey().equals(tag.getKey()) && Tags.SPAN_KIND_SERVER.equals(tag.getValue())) {
+            } else if (server) {
                 span.kind(brave.Span.Kind.SERVER);
             }
         }

@@ -24,11 +24,10 @@ import io.opentracing.propagation.TextMap;
 
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.HashSet;
-
 
 /**
  * Using a tracer, you can create a spans, inject span contexts into a transport, and extract span contexts from a
@@ -55,7 +54,7 @@ public final class BraveTracer implements Tracer {
     static final List<String> PROPAGATION_KEYS = Propagation.B3_STRING.keys();
     static final TraceContext.Injector<TextMap> INJECTOR = Propagation.B3_STRING.injector(TextMap::put);
     static final TraceContext.Extractor<TextMapView> EXTRACTOR = Propagation.B3_STRING.extractor(TextMapView::get);
-    static final Set<String> FIELDS_LOWER_CASE = buildHashSetLowerCase(PROPAGATION_KEYS);
+    static final Set<String> FIELDS_LOWER_CASE = lowercaseSet(PROPAGATION_KEYS);
 
     private final brave.Tracer brave4;
 
@@ -106,13 +105,13 @@ public final class BraveTracer implements Tracer {
         TraceContextOrSamplingFlags result =
                 EXTRACTOR.extract(new TextMapView(FIELDS_LOWER_CASE, (TextMap) carrier));
         TraceContext context = result.context() != null
-                ? result.context().toBuilder().shared(true).build()
+                ? result.context()
                 : brave4.newTrace(result.samplingFlags()).context();
         return BraveSpanContext.wrap(context);
     }
 
-    static Set<String> buildHashSetLowerCase(List<String> fields) {
-        Set<String> lcSet = new HashSet<String>();
+    static Set<String> lowercaseSet(List<String> fields) {
+        Set<String> lcSet = new LinkedHashSet<>();
         for (String f : fields) {
             lcSet.add(f.toLowerCase());
         }
