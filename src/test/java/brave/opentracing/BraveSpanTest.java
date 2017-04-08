@@ -34,7 +34,6 @@ import io.opentracing.tag.Tags;
 import zipkin.Constants;
 import zipkin.DependencyLink;
 import zipkin.storage.InMemoryStorage;
-import zipkin.storage.QueryRequest;
 
 public class BraveSpanTest {
   InMemoryStorage zipkin = new InMemoryStorage();
@@ -54,7 +53,7 @@ public class BraveSpanTest {
     try (Span span = tracer.buildSpan("foo").start()) {
     }
 
-    assertThat(zipkin.spanStore().getTraces(QueryRequest.builder().build()))
+    assertThat(zipkin.spanStore().getRawTraces())
         .hasSize(1);
   }
 
@@ -63,7 +62,7 @@ public class BraveSpanTest {
       span.finish(); // user closes and also auto-close closes
     }
 
-    assertThat(zipkin.spanStore().getTraces(QueryRequest.builder().build()))
+    assertThat(zipkin.spanStore().getRawTraces())
         .hasSize(1);
   }
 
@@ -73,7 +72,7 @@ public class BraveSpanTest {
         .withTag(Tags.SPAN_KIND.getKey(), Tags.SPAN_KIND_CLIENT)
         .start().finish();
 
-    assertThat(zipkin.spanStore().getTraces(QueryRequest.builder().build()))
+    assertThat(zipkin.spanStore().getRawTraces())
         .flatExtracting(t -> t)
         .flatExtracting(s -> s.annotations)
         .extracting(a -> a.value)
@@ -86,7 +85,7 @@ public class BraveSpanTest {
         .withTag(Tags.SPAN_KIND.getKey(), Tags.SPAN_KIND_SERVER)
         .start().finish();
 
-    assertThat(zipkin.spanStore().getTraces(QueryRequest.builder().build()))
+    assertThat(zipkin.spanStore().getRawTraces())
         .flatExtracting(t -> t)
         .flatExtracting(s -> s.annotations)
         .extracting(a -> a.value)
@@ -99,7 +98,7 @@ public class BraveSpanTest {
     span.setTag("hello", "monster");
     span.finish();
 
-    assertThat(zipkin.spanStore().getTraces(QueryRequest.builder().build()))
+    assertThat(zipkin.spanStore().getRawTraces())
         .flatExtracting(t -> t)
         .flatExtracting(s -> s.binaryAnnotations)
         .extracting(b -> b.key, b -> new String(b.value))
