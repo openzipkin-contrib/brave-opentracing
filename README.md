@@ -1,3 +1,5 @@
+[![Build Status][ci-img]][ci] [![Released Version][maven-img]][maven]
+
 # OpenTracing Java Bridge for Zipkin
 
 This library is a Java bridge between the [Brave/Zipkin Api](https://github.com/openzipkin/brave/tree/master/brave#brave-api-v4) and OpenTracing. It allows its users to write portable (in the [OpenTracing](http://opentracing.io) sense) instrumentation that's translated into Brave instrumentation transparently.
@@ -104,3 +106,8 @@ Code in the second process
 ```
 
 This code repeats from process to process, as far through the stack as required.
+
+   [ci-img]: https://travis-ci.org/openzipkin/brave-opentracing.svg?branch=master
+   [ci]: https://travis-ci.org/openzipkin/brave-opentracing
+   [maven-img]: https://img.shields.io/maven-central/v/io.opentracing.brave/brave-opentracing.svg?maxAge=2592000
+   [maven]: http://search.maven.org/#search%7Cga%7C1%7Cbrave-opentracing
