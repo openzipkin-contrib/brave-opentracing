@@ -17,6 +17,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import brave.propagation.SamplingFlags;
 import brave.propagation.TraceContext;
 import io.opentracing.References;
 import io.opentracing.Span;
@@ -122,7 +123,23 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
 
         brave.Span span;
         if (parent == null) {
-            span = braveTracer.newTrace();
+            // adjust sampling decision, this reflects Zipkin's "before the fact" sampling policy
+            // https://github.com/openzipkin/brave/tree/master/brave#sampling
+            SamplingFlags samplingFlags = SamplingFlags.EMPTY;
+            String sampling = tags.get(Tags.SAMPLING_PRIORITY.getKey());
+            if (sampling != null) {
+                try {
+                    Integer samplingPriority = Integer.valueOf(sampling);
+                    if (samplingPriority == 0) {
+                        samplingFlags = SamplingFlags.NOT_SAMPLED;
+                    } else if (samplingPriority > 0) {
+                        samplingFlags = SamplingFlags.SAMPLED;
+                    }
+                } catch (NumberFormatException ex) {
+                    // ignore
+                }
+            }
+            span = braveTracer.newTrace(samplingFlags);
         } else if (server) {
             // Zipkin's default is to share a span ID between the client and the server in an RPC.
             // When we start a server span with a parent, we assume the "parent" is actually the
