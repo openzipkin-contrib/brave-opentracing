@@ -121,6 +121,12 @@
 
     <build>
         <plugins>
+            <!-- mvn -N io.takari:maven:wrapper -Dmaven=3.5.0 -->
+            <plugin>
+                <groupId>io.takari</groupId>
+                <artifactId>maven</artifactId>
+                <version>0.3.4</version>
+            </plugin>
             <!-- Ensure main source tree compiles to Java 8 bytecode.    -->
             <plugin>
                 <inherited>true</inherited>
