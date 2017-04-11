@@ -145,4 +145,12 @@ public class BraveSpanTest {
     assertThat(zipkin.spanStore().getDependencies(System.currentTimeMillis(), null))
         .containsExactly(DependencyLink.create("tracer", "tracer2", 1L));
   }
+
+  @Test public void testNotSampled_spanBuilder_newTrace() {
+    tracer.buildSpan("foo")
+            .withTag(Tags.SAMPLING_PRIORITY.getKey(), 0)
+            .start().finish();
+
+    assertThat(zipkin.spanStore().getRawTraces()).isEmpty();
+  }
 }
