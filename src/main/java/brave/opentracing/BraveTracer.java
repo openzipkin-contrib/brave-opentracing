@@ -13,9 +13,10 @@
  */
 package brave.opentracing;
 
-import brave.internal.Nullable;
 import brave.propagation.Propagation;
 import brave.propagation.TraceContext;
+import brave.propagation.TraceContext.Extractor;
+import brave.propagation.TraceContext.Injector;
 import brave.propagation.TraceContextOrSamplingFlags;
 import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
@@ -25,6 +26,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -50,27 +52,67 @@ import java.util.Set;
  * @see Propagation
  */
 public final class BraveTracer implements Tracer {
-
-  static final List<String> PROPAGATION_KEYS = Propagation.B3_STRING.keys();
-  static final TraceContext.Injector<TextMap> INJECTOR =
-      Propagation.B3_STRING.injector(TextMap::put);
-  static final TraceContext.Extractor<TextMapView> EXTRACTOR =
-      Propagation.B3_STRING.extractor(TextMapView::get);
-  static final Set<String> FIELDS_LOWER_CASE = lowercaseSet(PROPAGATION_KEYS);
-
-  private final brave.Tracer brave4;
-
   /**
    * Returns an implementation of {@linkplain io.opentracing.Tracer} which delegates
    * the the provided Brave Tracer.
    */
   public static BraveTracer wrap(brave.Tracer brave4) {
-    if (brave4 == null) throw new NullPointerException("brave tracer == null");
-    return new BraveTracer(brave4);
+    return newBuilder(brave4).build();
   }
 
-  private BraveTracer(brave.Tracer brave4) {
-    this.brave4 = brave4;
+  public static Builder newBuilder(brave.Tracer brave4) {
+    return new Builder(brave4);
+  }
+
+  public static final class Builder {
+    brave.Tracer brave4;
+    Map<Format<TextMap>, Propagation<String>> formatToPropagation = new LinkedHashMap<>();
+
+    Builder(brave.Tracer brave4) {
+      if (brave4 == null) throw new NullPointerException("brave tracer == null");
+      this.brave4 = brave4;
+      formatToPropagation.put(Format.Builtin.HTTP_HEADERS, Propagation.B3_STRING);
+      formatToPropagation.put(Format.Builtin.TEXT_MAP, Propagation.B3_STRING);
+    }
+
+    /**
+     * By default, {@link Format.Builtin#HTTP_HEADERS} and {@link Format.Builtin#TEXT_MAP} use
+     * {@link Propagation#B3_STRING B3 Propagation}. You can override or add different formats using
+     * this method.
+     *
+     * <p>For example, instead of using implicit format keys in your code, you might want to
+     * explicitly declare you are using B3. To do so, you'd do setup the tracer like this:
+     * <pre>{@code
+     * builder.textMapPropagation(MyFormats.B3, Propagation.B3_STRING);
+     *
+     * // later, you can ensure B3 is used like this:
+     * tracer.extract(MyFormats.B3, textMap);
+     * }</pre>
+     */
+    // special named method because we can't overload later since both format and propagation only
+    // differ on generic types. Punting on Format<ByteBuffer> until someone asks for it.
+    public Builder textMapPropagation(Format<TextMap> format, Propagation<String> propagation) {
+      if (format == null) throw new NullPointerException("format == null");
+      if (propagation == null) throw new NullPointerException("propagation == null");
+      formatToPropagation.put(format, propagation);
+      return this;
+    }
+
+    public BraveTracer build() {
+      return new BraveTracer(this);
+    }
+  }
+
+  final brave.Tracer brave4;
+  final Map<Format<TextMap>, Injector<TextMap>> formatToInjector = new LinkedHashMap<>();
+  final Map<Format<TextMap>, Extractor<TextMap>> formatToExtractor = new LinkedHashMap<>();
+
+  BraveTracer(Builder b) {
+    brave4 = b.brave4;
+    for (Map.Entry<Format<TextMap>, Propagation<String>> entry : b.formatToPropagation.entrySet()) {
+      formatToInjector.put(entry.getKey(), entry.getValue().injector(TextMap::put));
+      formatToExtractor.put(entry.getKey(), new TextMapExtractorAdaptor(entry.getValue()));
+    }
   }
 
   /**
@@ -81,32 +123,57 @@ public final class BraveTracer implements Tracer {
   }
 
   /**
-   * Injects the underlying context using B3 encoding.
+   * Injects the underlying context using B3 encoding by default.
    */
   @Override public <C> void inject(SpanContext spanContext, Format<C> format, C carrier) {
-    if (format != Format.Builtin.HTTP_HEADERS && format != Format.Builtin.TEXT_MAP) {
-      throw new UnsupportedOperationException(format.toString()
-          + " != Format.Builtin.HTTP_HEADERS or Format.Builtin.TEXT_MAP");
+    Injector<TextMap> injector = formatToInjector.get(format);
+    if (injector == null) {
+      throw new UnsupportedOperationException(format + " not in " + formatToInjector.keySet());
     }
     TraceContext traceContext = ((BraveSpanContext) spanContext).unwrap();
-    INJECTOR.inject(traceContext, (TextMap) carrier);
+    injector.inject(traceContext, (TextMap) carrier);
   }
 
   /**
-   * Extracts the underlying context using B3 encoding. A new trace context is provisioned when
-   * there is no B3-encoded context in the carrier, or upon error extracting it.
+   * Extracts the underlying context using B3 encoding by default. A new trace context is
+   * provisioned when there is no encoded context in the carrier, or upon error extracting it.
    */
   @Override public <C> SpanContext extract(Format<C> format, C carrier) {
-    if (format != Format.Builtin.HTTP_HEADERS && format != Format.Builtin.TEXT_MAP) {
-      throw new UnsupportedOperationException(format.toString()
-          + " != Format.Builtin.HTTP_HEADERS or Format.Builtin.TEXT_MAP");
+    Extractor<TextMap> extractor = formatToExtractor.get(format);
+    if (extractor == null) {
+      throw new UnsupportedOperationException(format + " not in " + formatToExtractor.keySet());
     }
-    TraceContextOrSamplingFlags result =
-        EXTRACTOR.extract(new TextMapView(FIELDS_LOWER_CASE, (TextMap) carrier));
+    TraceContextOrSamplingFlags result = extractor.extract((TextMap) carrier);
     TraceContext context = result.context() != null
         ? result.context()
         : brave4.newTrace(result.samplingFlags()).context();
     return BraveSpanContext.wrap(context);
+  }
+
+  /**
+   * Eventhough TextMap is named like Map, it doesn't have a retrieve-by-key method
+   * Lookups will be case insensitive
+   */
+  static final class TextMapExtractorAdaptor implements Extractor<TextMap> {
+    final Set<String> fields;
+    final Extractor<Map<String, String>> delegate;
+
+    TextMapExtractorAdaptor(Propagation<String> propagation) {
+      fields = lowercaseSet(propagation.keys());
+      delegate = propagation.extractor((m, k) -> m.get(k.toLowerCase(Locale.ROOT)));
+    }
+
+    @Override public TraceContextOrSamplingFlags extract(TextMap entries) {
+      Map<String, String> cache = new LinkedHashMap<>();
+      for (Iterator<Map.Entry<String, String>> it = entries.iterator(); it.hasNext(); ) {
+        Map.Entry<String, String> next = it.next();
+        String inputKey = next.getKey().toLowerCase(Locale.ROOT);
+        if (fields.contains(inputKey)) {
+          cache.put(inputKey, next.getValue());
+        }
+      }
+      return delegate.extract(cache);
+    }
   }
 
   static Set<String> lowercaseSet(List<String> fields) {
@@ -115,31 +182,5 @@ public final class BraveTracer implements Tracer {
       lcSet.add(f.toLowerCase());
     }
     return lcSet;
-  }
-
-  /**
-   * Eventhough TextMap is named like Map, it doesn't have a retrieve-by-key method
-   * Lookups will be case insensitive
-   */
-  static final class TextMapView {
-    final Iterator<Map.Entry<String, String>> input;
-    final Map<String, String> cache = new LinkedHashMap<>();
-    final Set<String> fields;
-
-    TextMapView(Set<String> fields, TextMap input) {
-      this.input = input.iterator();
-      this.fields = fields;
-    }
-
-    @Nullable String get(String key) {
-      while (input.hasNext()) {
-        Map.Entry<String, String> next = input.next();
-        String inputKey = next.getKey().toLowerCase();
-        if (fields.contains(inputKey)) {
-          cache.put(inputKey, next.getValue());
-        }
-      }
-      return cache.get(key.toLowerCase());
-    }
   }
 }
