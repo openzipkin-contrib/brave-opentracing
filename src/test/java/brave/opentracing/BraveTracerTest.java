@@ -36,134 +36,135 @@ import static zipkin.internal.Util.UTF_8;
  */
 public class BraveTracerTest {
 
-    List<zipkin.Span> spans = new ArrayList<>();
-    Tracer brave = Tracer.newBuilder().reporter(spans::add).build();
-    BraveTracer opentracing = BraveTracer.wrap(brave);
+  List<zipkin.Span> spans = new ArrayList<>();
+  Tracer brave = Tracer.newBuilder().reporter(spans::add).build();
+  BraveTracer opentracing = BraveTracer.wrap(brave);
 
-    @Test public void startWithOpenTracingAndFinishWithBrave() {
-        io.opentracing.Span openTracingSpan = opentracing.buildSpan("encode")
-                .withTag(Constants.LOCAL_COMPONENT, "codec")
-                .withStartTimestamp(1L).start();
+  @Test public void startWithOpenTracingAndFinishWithBrave() {
+    io.opentracing.Span openTracingSpan = opentracing.buildSpan("encode")
+        .withTag(Constants.LOCAL_COMPONENT, "codec")
+        .withStartTimestamp(1L).start();
 
-        brave.Span braveSpan = ((BraveSpan) openTracingSpan).unwrap();
+    brave.Span braveSpan = ((BraveSpan) openTracingSpan).unwrap();
 
-        braveSpan.annotate(2L, "pump fake");
-        braveSpan.finish(3L);
+    braveSpan.annotate(2L, "pump fake");
+    braveSpan.finish(3L);
 
-        checkSpanReportedToZipkin();
-    }
+    checkSpanReportedToZipkin();
+  }
 
-    @Test public void startWithBraveAndFinishWithOpenTracing() {
-        brave.Span braveSpan = brave.newTrace().name("encode")
-                .tag(Constants.LOCAL_COMPONENT, "codec")
-                .start(1L);
+  @Test public void startWithBraveAndFinishWithOpenTracing() {
+    brave.Span braveSpan = brave.newTrace().name("encode")
+        .tag(Constants.LOCAL_COMPONENT, "codec")
+        .start(1L);
 
-        io.opentracing.Span openTracingSpan = BraveSpan.wrap(braveSpan);
+    io.opentracing.Span openTracingSpan = BraveSpan.wrap(braveSpan);
 
-        openTracingSpan.log(2L, "pump fake");
-        openTracingSpan.finish(3L);
+    openTracingSpan.log(2L, "pump fake");
+    openTracingSpan.finish(3L);
 
-        checkSpanReportedToZipkin();
-    }
+    checkSpanReportedToZipkin();
+  }
 
-    @Test
-    public void extractTraceContext() throws Exception {
-        Map<String, String> map = new LinkedHashMap<>();
-        map.put("X-B3-TraceId", "0000000000000001");
-        map.put("X-B3-SpanId", "0000000000000002");
-        map.put("X-B3-Sampled", "1");
+  @Test public void extractTraceContext() throws Exception {
+    Map<String, String> map = new LinkedHashMap<>();
+    map.put("X-B3-TraceId", "0000000000000001");
+    map.put("X-B3-SpanId", "0000000000000002");
+    map.put("X-B3-Sampled", "1");
 
-        BraveSpanContext openTracingContext =
-                (BraveSpanContext) opentracing.extract(Format.Builtin.HTTP_HEADERS, new TextMapExtractAdapter(map));
+    BraveSpanContext openTracingContext =
+        (BraveSpanContext) opentracing.extract(Format.Builtin.HTTP_HEADERS,
+            new TextMapExtractAdapter(map));
 
-        assertThat(openTracingContext.unwrap())
-                .isEqualTo(TraceContext.newBuilder()
-                        .traceId(1L)
-                        .spanId(2L)
-                        .sampled(true).build());
-    }
+    assertThat(openTracingContext.unwrap())
+        .isEqualTo(TraceContext.newBuilder()
+            .traceId(1L)
+            .spanId(2L)
+            .sampled(true).build());
+  }
 
-    @Test
-    public void extractTraceContextTextMap() throws Exception {
-        Map<String, String> map = new LinkedHashMap<>();
-        map.put("X-B3-TraceId", "0000000000000001");
-        map.put("X-B3-SpanId", "0000000000000002");
-        map.put("X-B3-Sampled", "1");
+  @Test public void extractTraceContextTextMap() throws Exception {
+    Map<String, String> map = new LinkedHashMap<>();
+    map.put("X-B3-TraceId", "0000000000000001");
+    map.put("X-B3-SpanId", "0000000000000002");
+    map.put("X-B3-Sampled", "1");
 
-        BraveSpanContext openTracingContext =
-                (BraveSpanContext) opentracing.extract(Format.Builtin.TEXT_MAP, new TextMapExtractAdapter(map));
+    BraveSpanContext openTracingContext =
+        (BraveSpanContext) opentracing.extract(Format.Builtin.TEXT_MAP,
+            new TextMapExtractAdapter(map));
 
-        assertThat(openTracingContext.unwrap())
-                .isEqualTo(TraceContext.newBuilder()
-                        .traceId(1L)
-                        .spanId(2L)
-                        .sampled(true).build());
-    }
+    assertThat(openTracingContext.unwrap())
+        .isEqualTo(TraceContext.newBuilder()
+            .traceId(1L)
+            .spanId(2L)
+            .sampled(true).build());
+  }
 
-    @Test
-    public void extractTraceContextCaseInsensitive() throws Exception {
-        Map<String, String> map = new LinkedHashMap<>();
-        map.put("X-B3-TraceId", "0000000000000001");
-        map.put("x-b3-spanid", "0000000000000002");
-        map.put("x-b3-SaMpLeD", "1");
-        map.put("other", "1");
+  @Test
+  public void extractTraceContextCaseInsensitive() throws Exception {
+    Map<String, String> map = new LinkedHashMap<>();
+    map.put("X-B3-TraceId", "0000000000000001");
+    map.put("x-b3-spanid", "0000000000000002");
+    map.put("x-b3-SaMpLeD", "1");
+    map.put("other", "1");
 
-        BraveSpanContext openTracingContext =
-                (BraveSpanContext) opentracing.extract(Format.Builtin.HTTP_HEADERS, new TextMapExtractAdapter(map));
+    BraveSpanContext openTracingContext =
+        (BraveSpanContext) opentracing.extract(Format.Builtin.HTTP_HEADERS,
+            new TextMapExtractAdapter(map));
 
-        assertThat(openTracingContext.unwrap())
-                .isEqualTo(TraceContext.newBuilder()
-                        .traceId(1L)
-                        .spanId(2L)
-                        .sampled(true).build());
-    }
+    assertThat(openTracingContext.unwrap())
+        .isEqualTo(TraceContext.newBuilder()
+            .traceId(1L)
+            .spanId(2L)
+            .sampled(true).build());
+  }
 
-    @Test
-    public void injectTraceContext() throws Exception {
-        TraceContext context = TraceContext.newBuilder()
-                .traceId(1L)
-                .spanId(2L)
-                .sampled(true).build();
+  @Test
+  public void injectTraceContext() throws Exception {
+    TraceContext context = TraceContext.newBuilder()
+        .traceId(1L)
+        .spanId(2L)
+        .sampled(true).build();
 
-        Map<String, String> map = new LinkedHashMap<>();
-        TextMapInjectAdapter carrier = new TextMapInjectAdapter(map);
-        opentracing.inject(BraveSpanContext.wrap(context), Format.Builtin.HTTP_HEADERS, carrier);
+    Map<String, String> map = new LinkedHashMap<>();
+    TextMapInjectAdapter carrier = new TextMapInjectAdapter(map);
+    opentracing.inject(BraveSpanContext.wrap(context), Format.Builtin.HTTP_HEADERS, carrier);
 
-        assertThat(map).containsExactly(
-                entry("X-B3-TraceId", "0000000000000001"),
-                entry("X-B3-SpanId", "0000000000000002"),
-                entry("X-B3-Sampled", "1")
-        );
-    }
+    assertThat(map).containsExactly(
+        entry("X-B3-TraceId", "0000000000000001"),
+        entry("X-B3-SpanId", "0000000000000002"),
+        entry("X-B3-Sampled", "1")
+    );
+  }
 
-    @Test
-    public void injectTraceContextTextMap() throws Exception {
-        TraceContext context = TraceContext.newBuilder()
-                .traceId(1L)
-                .spanId(2L)
-                .sampled(true).build();
+  @Test
+  public void injectTraceContextTextMap() throws Exception {
+    TraceContext context = TraceContext.newBuilder()
+        .traceId(1L)
+        .spanId(2L)
+        .sampled(true).build();
 
-        Map<String, String> map = new LinkedHashMap<>();
-        TextMapInjectAdapter carrier = new TextMapInjectAdapter(map);
-        opentracing.inject(BraveSpanContext.wrap(context), Format.Builtin.TEXT_MAP, carrier);
+    Map<String, String> map = new LinkedHashMap<>();
+    TextMapInjectAdapter carrier = new TextMapInjectAdapter(map);
+    opentracing.inject(BraveSpanContext.wrap(context), Format.Builtin.TEXT_MAP, carrier);
 
-        assertThat(map).containsExactly(
-                entry("X-B3-TraceId", "0000000000000001"),
-                entry("X-B3-SpanId", "0000000000000002"),
-                entry("X-B3-Sampled", "1")
-        );
-    }
+    assertThat(map).containsExactly(
+        entry("X-B3-TraceId", "0000000000000001"),
+        entry("X-B3-SpanId", "0000000000000002"),
+        entry("X-B3-Sampled", "1")
+    );
+  }
 
-    void checkSpanReportedToZipkin() {
-        assertThat(spans).first().satisfies(s -> {
-                    assertThat(s.name).isEqualTo("encode");
-                    assertThat(s.timestamp).isEqualTo(1L);
-                    assertThat(s.annotations).extracting(a -> a.timestamp, a -> a.value)
-                            .containsExactly(tuple(2L, "pump fake"));
-                    assertThat(s.binaryAnnotations).extracting(b -> b.key, b -> new String(b.value, UTF_8))
-                            .containsExactly(tuple(Constants.LOCAL_COMPONENT, "codec"));
-                    assertThat(s.duration).isEqualTo(2L);
-                }
-        );
-    }
+  void checkSpanReportedToZipkin() {
+    assertThat(spans).first().satisfies(s -> {
+          assertThat(s.name).isEqualTo("encode");
+          assertThat(s.timestamp).isEqualTo(1L);
+          assertThat(s.annotations).extracting(a -> a.timestamp, a -> a.value)
+              .containsExactly(tuple(2L, "pump fake"));
+          assertThat(s.binaryAnnotations).extracting(b -> b.key, b -> new String(b.value, UTF_8))
+              .containsExactly(tuple(Constants.LOCAL_COMPONENT, "codec"));
+          assertThat(s.duration).isEqualTo(2L);
+        }
+    );
+  }
 }

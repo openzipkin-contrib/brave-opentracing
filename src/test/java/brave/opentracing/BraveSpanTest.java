@@ -13,17 +13,6 @@
  */
 package brave.opentracing;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.tuple;
-
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-
-import org.junit.Before;
-import org.junit.Test;
-
 import brave.Tracer;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
@@ -31,9 +20,18 @@ import io.opentracing.propagation.Format;
 import io.opentracing.propagation.TextMapExtractAdapter;
 import io.opentracing.propagation.TextMapInjectAdapter;
 import io.opentracing.tag.Tags;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import org.junit.Before;
+import org.junit.Test;
 import zipkin.Constants;
 import zipkin.DependencyLink;
 import zipkin.storage.InMemoryStorage;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 public class BraveSpanTest {
   InMemoryStorage zipkin = new InMemoryStorage();
@@ -43,8 +41,7 @@ public class BraveSpanTest {
           .reporter(s -> zipkin.spanConsumer().accept(Collections.singletonList(s))).build()
   );
 
-  @Before
-  public void clear() {
+  @Before public void clear() {
     zipkin.clear();
   }
 
@@ -148,8 +145,8 @@ public class BraveSpanTest {
 
   @Test public void testNotSampled_spanBuilder_newTrace() {
     tracer.buildSpan("foo")
-            .withTag(Tags.SAMPLING_PRIORITY.getKey(), 0)
-            .start().finish();
+        .withTag(Tags.SAMPLING_PRIORITY.getKey(), 0)
+        .start().finish();
 
     assertThat(zipkin.spanStore().getRawTraces()).isEmpty();
   }

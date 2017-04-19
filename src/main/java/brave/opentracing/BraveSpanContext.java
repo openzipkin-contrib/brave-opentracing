@@ -15,7 +15,6 @@ package brave.opentracing;
 
 import brave.propagation.TraceContext;
 import io.opentracing.SpanContext;
-
 import java.util.Collections;
 import java.util.Map;
 
@@ -28,30 +27,29 @@ import java.util.Map;
  */
 public final class BraveSpanContext implements SpanContext {
 
-    private final TraceContext traceContext;
+  private final TraceContext traceContext;
 
-    static BraveSpanContext wrap(TraceContext traceContext) {
-        return new BraveSpanContext(traceContext);
-    }
+  static BraveSpanContext wrap(TraceContext traceContext) {
+    return new BraveSpanContext(traceContext);
+  }
 
-    /**
-     * Returns the underlying trace context for use in Brave apis
-     */
-    public TraceContext unwrap() {
-        return traceContext;
-    }
+  /**
+   * Returns the underlying trace context for use in Brave apis
+   */
+  public TraceContext unwrap() {
+    return traceContext;
+  }
 
-    private BraveSpanContext(TraceContext traceContext) {
-        this.traceContext = traceContext;
-    }
+  private BraveSpanContext(TraceContext traceContext) {
+    this.traceContext = traceContext;
+  }
 
-    /**
-     * Returns empty as neither <a href="https://github.com/openzipkin/b3-propagation">B3</a>
-     * nor Brave include baggage support.
-     */
-    @Override
-    public Iterable<Map.Entry<String, String>> baggageItems() {
-        // brave doesn't support baggage
-        return Collections.EMPTY_SET;
-    }
+  /**
+   * Returns empty as neither <a href="https://github.com/openzipkin/b3-propagation">B3</a>
+   * nor Brave include baggage support.
+   */
+  @Override public Iterable<Map.Entry<String, String>> baggageItems() {
+    // brave doesn't support baggage
+    return Collections.EMPTY_SET;
+  }
 }
