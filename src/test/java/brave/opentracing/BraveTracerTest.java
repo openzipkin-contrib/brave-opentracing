@@ -14,8 +14,10 @@
 package brave.opentracing;
 
 import brave.Tracer;
+import brave.propagation.Propagation;
 import brave.propagation.TraceContext;
 import io.opentracing.propagation.Format;
+import io.opentracing.propagation.TextMap;
 import io.opentracing.propagation.TextMapExtractAdapter;
 import io.opentracing.propagation.TextMapInjectAdapter;
 import java.util.ArrayList;
@@ -100,8 +102,7 @@ public class BraveTracerTest {
             .sampled(true).build());
   }
 
-  @Test
-  public void extractTraceContextCaseInsensitive() throws Exception {
+  @Test public void extractTraceContextCaseInsensitive() throws Exception {
     Map<String, String> map = new LinkedHashMap<>();
     map.put("X-B3-TraceId", "0000000000000001");
     map.put("x-b3-spanid", "0000000000000002");
@@ -119,8 +120,7 @@ public class BraveTracerTest {
             .sampled(true).build());
   }
 
-  @Test
-  public void injectTraceContext() throws Exception {
+  @Test public void injectTraceContext() throws Exception {
     TraceContext context = TraceContext.newBuilder()
         .traceId(1L)
         .spanId(2L)
@@ -137,8 +137,7 @@ public class BraveTracerTest {
     );
   }
 
-  @Test
-  public void injectTraceContextTextMap() throws Exception {
+  @Test public void injectTraceContextTextMap() throws Exception {
     TraceContext context = TraceContext.newBuilder()
         .traceId(1L)
         .spanId(2L)
@@ -147,6 +146,28 @@ public class BraveTracerTest {
     Map<String, String> map = new LinkedHashMap<>();
     TextMapInjectAdapter carrier = new TextMapInjectAdapter(map);
     opentracing.inject(BraveSpanContext.wrap(context), Format.Builtin.TEXT_MAP, carrier);
+
+    assertThat(map).containsExactly(
+        entry("X-B3-TraceId", "0000000000000001"),
+        entry("X-B3-SpanId", "0000000000000002"),
+        entry("X-B3-Sampled", "1")
+    );
+  }
+
+  @Test public void canUseCustomFormatKeys() throws Exception {
+    Format<TextMap> B3 = new Format<TextMap>() {
+    };
+    opentracing = BraveTracer.newBuilder(brave)
+        .textMapPropagation(B3, Propagation.B3_STRING).build();
+
+    TraceContext context = TraceContext.newBuilder()
+        .traceId(1L)
+        .spanId(2L)
+        .sampled(true).build();
+
+    Map<String, String> map = new LinkedHashMap<>();
+    TextMapInjectAdapter carrier = new TextMapInjectAdapter(map);
+    opentracing.inject(BraveSpanContext.wrap(context), B3, carrier);
 
     assertThat(map).containsExactly(
         entry("X-B3-TraceId", "0000000000000001"),
