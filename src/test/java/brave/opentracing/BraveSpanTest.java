@@ -13,7 +13,7 @@
  */
 package brave.opentracing;
 
-import brave.Tracer;
+import brave.Tracing;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
 import io.opentracing.propagation.Format;
@@ -35,8 +35,8 @@ import static org.assertj.core.api.Assertions.tuple;
 
 public class BraveSpanTest {
   InMemoryStorage zipkin = new InMemoryStorage();
-  BraveTracer tracer = BraveTracer.wrap(
-      Tracer.newBuilder()
+  BraveTracer tracer = BraveTracer.create(
+      Tracing.newBuilder()
           .localServiceName("tracer")
           .reporter(s -> zipkin.spanConsumer().accept(Collections.singletonList(s))).build()
   );
@@ -110,8 +110,8 @@ public class BraveSpanTest {
     Map<String, String> carrier = new LinkedHashMap<>();
     tracer.inject(spanClient.context(), Format.Builtin.TEXT_MAP, new TextMapInjectAdapter(carrier));
 
-    BraveTracer tracer2 = BraveTracer.wrap(
-        Tracer.newBuilder()
+    BraveTracer tracer2 = BraveTracer.create(
+        Tracing.newBuilder()
             .localServiceName("tracer2")
             .reporter(s -> zipkin.spanConsumer().accept(Collections.singletonList(s))).build()
     );

@@ -13,6 +13,7 @@
  */
 package brave.opentracing;
 
+import brave.Tracing;
 import brave.propagation.Propagation;
 import brave.propagation.TraceContext;
 import brave.propagation.TraceContext.Extractor;
@@ -54,29 +55,30 @@ import java.util.Set;
 public final class BraveTracer implements Tracer {
   /**
    * Returns an implementation of {@linkplain io.opentracing.Tracer} which delegates
-   * the the provided Brave Tracer.
+   * the the provided Brave {@linkplain brave.Tracing tracing} component.
    */
-  public static BraveTracer wrap(brave.Tracer brave4) {
+  public static BraveTracer create(Tracing brave4) {
     return newBuilder(brave4).build();
   }
 
-  public static Builder newBuilder(brave.Tracer brave4) {
+  public static Builder newBuilder(Tracing brave4) {
     return new Builder(brave4);
   }
 
   public static final class Builder {
-    brave.Tracer brave4;
+    Tracing brave4;
     Map<Format<TextMap>, Propagation<String>> formatToPropagation = new LinkedHashMap<>();
 
-    Builder(brave.Tracer brave4) {
-      if (brave4 == null) throw new NullPointerException("brave tracer == null");
+    Builder(Tracing brave4) {
+      if (brave4 == null) throw new NullPointerException("brave tracing component == null");
       this.brave4 = brave4;
-      formatToPropagation.put(Format.Builtin.HTTP_HEADERS, Propagation.B3_STRING);
-      formatToPropagation.put(Format.Builtin.TEXT_MAP, Propagation.B3_STRING);
+      formatToPropagation.put(Format.Builtin.HTTP_HEADERS, brave4.propagation());
+      formatToPropagation.put(Format.Builtin.TEXT_MAP, brave4.propagation());
     }
 
     /**
      * By default, {@link Format.Builtin#HTTP_HEADERS} and {@link Format.Builtin#TEXT_MAP} use
+     * the propagation mechanism supplied by {@link Tracing#propagation()}, which defaults to
      * {@link Propagation#B3_STRING B3 Propagation}. You can override or add different formats using
      * this method.
      *
@@ -108,7 +110,7 @@ public final class BraveTracer implements Tracer {
   final Map<Format<TextMap>, Extractor<TextMap>> formatToExtractor = new LinkedHashMap<>();
 
   BraveTracer(Builder b) {
-    brave4 = b.brave4;
+    brave4 = b.brave4.tracer();
     for (Map.Entry<Format<TextMap>, Propagation<String>> entry : b.formatToPropagation.entrySet()) {
       formatToInjector.put(entry.getKey(), entry.getValue().injector(TextMap::put));
       formatToExtractor.put(entry.getKey(), new TextMapExtractorAdaptor(entry.getValue()));
