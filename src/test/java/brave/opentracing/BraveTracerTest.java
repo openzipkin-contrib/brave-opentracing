@@ -13,7 +13,7 @@
  */
 package brave.opentracing;
 
-import brave.Tracer;
+import brave.Tracing;
 import brave.propagation.Propagation;
 import brave.propagation.TraceContext;
 import io.opentracing.propagation.Format;
@@ -39,8 +39,8 @@ import static zipkin.internal.Util.UTF_8;
 public class BraveTracerTest {
 
   List<zipkin.Span> spans = new ArrayList<>();
-  Tracer brave = Tracer.newBuilder().reporter(spans::add).build();
-  BraveTracer opentracing = BraveTracer.wrap(brave);
+  Tracing brave = Tracing.newBuilder().reporter(spans::add).build();
+  BraveTracer opentracing = BraveTracer.create(brave);
 
   @Test public void startWithOpenTracingAndFinishWithBrave() {
     io.opentracing.Span openTracingSpan = opentracing.buildSpan("encode")
@@ -56,7 +56,7 @@ public class BraveTracerTest {
   }
 
   @Test public void startWithBraveAndFinishWithOpenTracing() {
-    brave.Span braveSpan = brave.newTrace().name("encode")
+    brave.Span braveSpan = brave.tracer().newTrace().name("encode")
         .tag(Constants.LOCAL_COMPONENT, "codec")
         .start(1L);
 

@@ -20,15 +20,15 @@ Firstly, you need a Tracer, configured to [report to Zipkin](https://github.com/
 sender = OkHttpSender.create("http://127.0.0.1:9411/api/v1/spans");
 reporter = AsyncReporter.builder(sender).build();
 
-// Now, create a Brave tracer with the service name you want to see in Zipkin.
+// Now, create a Brave tracing component with the service name you want to see in Zipkin.
 //   (the dependency is io.zipkin.brave:brave)
-braveTracer = Tracer.newBuilder()
-                    .localServiceName("my-service")
-                    .reporter(reporter)
-                    .build();
+braveTracing = Tracing.newBuilder()
+                      .localServiceName("my-service")
+                      .reporter(reporter)
+                      .build();
 
-// Finally, wrap this with the OpenTracing Api
-tracer = BraveTracer.wrap(braveTracer);
+// use this to create an OpenTracing Tracer
+tracer = BraveTracer.create(braveTracing);
 
 // You can later unwrap the underlying Brave Api as needed
 braveTracer = tracer.unwrap();
