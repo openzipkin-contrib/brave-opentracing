@@ -12,3 +12,5 @@ _site/
 *.iml
 *.swp
 /opentracing-brave/nbproject/
+.gradle/
+build/
