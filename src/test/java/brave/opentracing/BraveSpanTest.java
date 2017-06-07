@@ -14,21 +14,23 @@
 package brave.opentracing;
 
 import brave.Tracing;
+import io.opentracing.ActiveSpan;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
 import io.opentracing.propagation.Format;
 import io.opentracing.propagation.TextMapExtractAdapter;
 import io.opentracing.propagation.TextMapInjectAdapter;
 import io.opentracing.tag.Tags;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
 import org.junit.Before;
 import org.junit.Test;
 import zipkin.Constants;
 import zipkin.DependencyLink;
 import zipkin.storage.InMemoryStorage;
+
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
@@ -47,7 +49,7 @@ public class BraveSpanTest {
 
   /** OpenTracing span implements auto-closeable, and implies reporting on close */
   @Test public void autoCloseOnTryFinally() {
-    try (Span span = tracer.buildSpan("foo").start()) {
+    try (ActiveSpan span = tracer.buildSpan("foo").startActive()) {
     }
 
     assertThat(zipkin.spanStore().getRawTraces())
@@ -55,8 +57,8 @@ public class BraveSpanTest {
   }
 
   @Test public void autoCloseOnTryFinally_doesntReportTwice() {
-    try (Span span = tracer.buildSpan("foo").start()) {
-      span.finish(); // user closes and also auto-close closes
+    try (ActiveSpan span = tracer.buildSpan("foo").startActive()) {
+      span.deactivate(); // user closes and also auto-close closes
     }
 
     assertThat(zipkin.spanStore().getRawTraces())

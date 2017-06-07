@@ -15,12 +15,15 @@ package brave.opentracing;
 
 import brave.propagation.SamplingFlags;
 import brave.propagation.TraceContext;
+import io.opentracing.ActiveSpan;
+import io.opentracing.BaseSpan;
 import io.opentracing.References;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
+import io.opentracing.Tracer.SpanBuilder;
 import io.opentracing.tag.Tags;
-import java.util.Collections;
+
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -36,14 +39,17 @@ import java.util.Map;
  */
 public final class BraveSpanBuilder implements Tracer.SpanBuilder {
 
+  private final Tracer tracer;
   private final brave.Tracer braveTracer;
   private final Map<String, String> tags = new LinkedHashMap<>();
 
   private String operationName;
   private long timestamp;
   private TraceContext parent;
+  private boolean ignoreActiveSpan = false;
 
-  BraveSpanBuilder(brave.Tracer braveTracer, String operationName) {
+  BraveSpanBuilder(Tracer tracer, brave.Tracer braveTracer, String operationName) {
+    this.tracer = tracer;
     this.braveTracer = braveTracer;
     this.operationName = operationName;
   }
@@ -58,7 +64,7 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
   /**
    * {@inheritDoc}
    */
-  @Override public Tracer.SpanBuilder asChildOf(Span parent) {
+  @Override public Tracer.SpanBuilder asChildOf(BaseSpan<?> parent) {
     return asChildOf(parent.context());
   }
 
@@ -105,10 +111,32 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
     return this;
   }
 
+  @Override
+  public Span start() {
+    return startManual();
+  }
+
+  @Override
+  public ActiveSpan startActive() {
+    if (!ignoreActiveSpan) {
+      ActiveSpan parent = tracer.activeSpan();
+      if (parent != null) {
+        asChildOf(parent);
+      }
+    }
+    return tracer.makeActive(startManual());
+  }
+
+  @Override
+  public SpanBuilder ignoreActiveSpan() {
+    ignoreActiveSpan = true;
+    return this;
+  }
+
   /**
    * {@inheritDoc}
    */
-  @Override public BraveSpan start() {
+  @Override public Span startManual() {
     boolean server = Tags.SPAN_KIND_SERVER.equals(tags.get(Tags.SPAN_KIND.getKey()));
 
     brave.Span span;
@@ -157,16 +185,5 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
       result = span.start();
     }
     return BraveSpan.wrap(result);
-  }
-
-  /**
-   * Returns zero values as neither <a href="https://github.com/openzipkin/b3-propagation">B3</a>
-   * nor Brave include baggage support.
-   */
-  // OpenTracing could one day define a way to plug-in arbitrary baggage handling similar to how
-  // it has feature-specific apis like active-span
-  @Override public Iterable<Map.Entry<String, String>> baggageItems() {
-    // brave doesn't support baggage
-    return Collections.EMPTY_SET;
   }
 }

@@ -74,13 +74,6 @@ public final class BraveSpan implements Span {
   /**
    * {@inheritDoc}
    */
-  @Override public void close() {
-    delegate.finish();
-  }
-
-  /**
-   * {@inheritDoc}
-   */
   @Override public Span setTag(String key, String value) {
     delegate.tag(key, value);
 

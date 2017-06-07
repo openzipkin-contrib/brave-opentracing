@@ -23,6 +23,8 @@ import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
 import io.opentracing.propagation.Format;
 import io.opentracing.propagation.TextMap;
+import io.opentracing.util.ThreadLocalActiveSpanSource;
+
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -52,7 +54,7 @@ import java.util.Set;
  * @see BraveSpan
  * @see Propagation
  */
-public final class BraveTracer implements Tracer {
+public final class BraveTracer extends ThreadLocalActiveSpanSource implements Tracer {
   /**
    * Returns an implementation of {@linkplain io.opentracing.Tracer} which delegates
    * the the provided Brave {@linkplain brave.Tracing tracing} component.
@@ -121,7 +123,7 @@ public final class BraveTracer implements Tracer {
    * {@inheritDoc}
    */
   @Override public SpanBuilder buildSpan(String operationName) {
-    return new BraveSpanBuilder(brave4, operationName);
+    return new BraveSpanBuilder(this, brave4, operationName);
   }
 
   /**
