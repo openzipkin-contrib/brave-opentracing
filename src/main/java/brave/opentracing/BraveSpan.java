@@ -25,7 +25,7 @@ import java.util.Map;
  * <p>This type also includes hooks to integrate with the underlying {@linkplain brave.Tracer}.
  * Ex you can access the underlying span with {@link #unwrap}
  */
-public final class BraveSpan implements Span {
+public class BraveSpan implements Span {
 
   /**
    * Converts an existing {@linkplain brave.Span} for use in OpenTracing apis
@@ -42,10 +42,10 @@ public final class BraveSpan implements Span {
     return delegate;
   }
 
-  private final brave.Span delegate;
-  private final SpanContext context;
+  protected final brave.Span delegate;
+  protected final SpanContext context;
 
-  private BraveSpan(brave.Span delegate) {
+  protected BraveSpan(brave.Span delegate) {
     this.delegate = delegate;
     this.context = BraveSpanContext.wrap(delegate.context());
   }

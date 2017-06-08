@@ -20,12 +20,13 @@ import io.opentracing.propagation.Format;
 import io.opentracing.propagation.TextMap;
 import io.opentracing.propagation.TextMapExtractAdapter;
 import io.opentracing.propagation.TextMapInjectAdapter;
+import org.junit.Test;
+import zipkin.Constants;
+
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import org.junit.Test;
-import zipkin.Constants;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
@@ -45,7 +46,8 @@ public class BraveTracerTest {
   @Test public void startWithOpenTracingAndFinishWithBrave() {
     io.opentracing.Span openTracingSpan = opentracing.buildSpan("encode")
         .withTag(Constants.LOCAL_COMPONENT, "codec")
-        .withStartTimestamp(1L).start();
+        .withStartTimestamp(1L)
+        .startManual();
 
     brave.Span braveSpan = ((BraveSpan) openTracingSpan).unwrap();
 

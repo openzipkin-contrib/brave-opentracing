@@ -19,11 +19,13 @@ import brave.propagation.TraceContext;
 import brave.propagation.TraceContext.Extractor;
 import brave.propagation.TraceContext.Injector;
 import brave.propagation.TraceContextOrSamplingFlags;
+import io.opentracing.ActiveSpan;
+import io.opentracing.ActiveSpanSource;
+import io.opentracing.Span;
 import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
 import io.opentracing.propagation.Format;
 import io.opentracing.propagation.TextMap;
-import io.opentracing.util.ThreadLocalActiveSpanSource;
 
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -54,21 +56,35 @@ import java.util.Set;
  * @see BraveSpan
  * @see Propagation
  */
-public final class BraveTracer extends ThreadLocalActiveSpanSource implements Tracer {
+public final class BraveTracer implements Tracer {
+  private final brave.Tracer brave4;
+  private final ActiveSpanSource activeSpanSource;
+
   /**
-   * Returns an implementation of {@linkplain io.opentracing.Tracer} which delegates
-   * the the provided Brave {@linkplain brave.Tracing tracing} component.
+   * Returns an implementation of {@link Tracer} which delegates to the
+   * provided Brave {@link Tracing} component and uses an instance of
+   * {@link BraveActiveSpanSource} for its {@link ActiveSpanSource}.
    */
   public static BraveTracer create(Tracing brave4) {
-    return newBuilder(brave4).build();
+    return newBuilder(brave4)
+            .setActiveSpanSource(new BraveActiveSpanSource(brave4))
+            .build();
   }
 
+  /**
+   * Returns a {@link Builder} configured with the provided Brave
+   * {@link Tracing}
+   * provided Brave {@link Tracing} component and uses an instance of
+   * {@link BraveActiveSpanSource} for its {@link ActiveSpanSource}.
+   */
   public static Builder newBuilder(Tracing brave4) {
-    return new Builder(brave4);
+    return new Builder(brave4).setActiveSpanSource(new BraveActiveSpanSource(brave4));
   }
 
   public static final class Builder {
     Tracing brave4;
+    ActiveSpanSource activeSpanSource;
+
     Map<Format<TextMap>, Propagation<String>> formatToPropagation = new LinkedHashMap<>();
 
     Builder(Tracing brave4) {
@@ -76,6 +92,11 @@ public final class BraveTracer extends ThreadLocalActiveSpanSource implements Tr
       this.brave4 = brave4;
       formatToPropagation.put(Format.Builtin.HTTP_HEADERS, brave4.propagation());
       formatToPropagation.put(Format.Builtin.TEXT_MAP, brave4.propagation());
+    }
+
+    public Builder setActiveSpanSource(ActiveSpanSource activeSpanSource) {
+      this.activeSpanSource = activeSpanSource;
+      return this;
     }
 
     /**
@@ -107,16 +128,26 @@ public final class BraveTracer extends ThreadLocalActiveSpanSource implements Tr
     }
   }
 
-  final brave.Tracer brave4;
   final Map<Format<TextMap>, Injector<TextMap>> formatToInjector = new LinkedHashMap<>();
   final Map<Format<TextMap>, Extractor<TextMap>> formatToExtractor = new LinkedHashMap<>();
 
   BraveTracer(Builder b) {
     brave4 = b.brave4.tracer();
+    activeSpanSource = b.activeSpanSource;
     for (Map.Entry<Format<TextMap>, Propagation<String>> entry : b.formatToPropagation.entrySet()) {
       formatToInjector.put(entry.getKey(), entry.getValue().injector(TextMap::put));
       formatToExtractor.put(entry.getKey(), new TextMapExtractorAdaptor(entry.getValue()));
     }
+  }
+
+  @Override
+  public ActiveSpan activeSpan() {
+    return activeSpanSource.activeSpan();
+  }
+
+  @Override
+  public ActiveSpan makeActive(Span span) {
+    return activeSpanSource.makeActive(span);
   }
 
   /**
