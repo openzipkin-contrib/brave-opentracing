@@ -136,7 +136,7 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
   /**
    * {@inheritDoc}
    */
-  @Override public Span startManual() {
+  @Override public BraveSpan startManual() {
     boolean server = Tags.SPAN_KIND_SERVER.equals(tags.get(Tags.SPAN_KIND.getKey()));
 
     brave.Span span;

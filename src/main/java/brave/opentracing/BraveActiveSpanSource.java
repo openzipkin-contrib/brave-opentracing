@@ -19,56 +19,66 @@ import brave.Tracing;
 import io.opentracing.ActiveSpan;
 import io.opentracing.ActiveSpanSource;
 import io.opentracing.Span;
-
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Manages the active Brave span.
  *
- * Note that it is important to use the OpenTracing API exclusively to activate spans. If you fail to do this, querying
- * for the active span using the
- * OpenTracing API will throw an exception.
+ * Note that it is important to use the OpenTracing API exclusively to activate spans. If you fail
+ * to do this, querying for the active span using the OpenTracing API will throw an exception.
  */
-public class BraveActiveSpanSource implements ActiveSpanSource {
-    private final Tracer tracer;
+final class BraveActiveSpanSource implements ActiveSpanSource {
+  private final Map<Long, AtomicInteger> refCounts = new ConcurrentHashMap<>();
+  private final Tracer tracer;
 
-    public BraveActiveSpanSource(Tracing brave4) {
-        tracer = brave4.tracer();
+  BraveActiveSpanSource(Tracing brave4) {
+    tracer = brave4.tracer();
+  }
+
+  @Override
+  public ActiveSpan activeSpan() {
+    brave.Span span = tracer.currentSpan();
+    if (span == null) {
+      return null;
     }
 
-    /**
-     * @return the current ActiveSpan. Note that calling {@link ActiveSpan#deactivate()} or {@link ActiveSpan#close()}
-     * on the result does nothing; to close/deactivate, call one of those methods on the reference returned by
-     * {@link #makeActive(Span)}.
-     */
-    @Override
-    public ActiveSpan activeSpan() {
-        brave.Span span = tracer.currentSpan();
-        if (span == null) {
-            return null;
-        }
-        return new BraveActiveSpan(tracer.withSpanInScope(span),
-                                   BraveSpan.wrap(span),
-                                   new AtomicInteger(1),
-                                   false);
+    return new BraveActiveSpan(this,
+        tracer.withSpanInScope(span),
+        BraveSpan.wrap(span),
+        getOrEstablishRefCount(span));
+  }
+
+  @Override
+  public ActiveSpan makeActive(Span span) {
+    if (span == null) return null;
+    if (!(span instanceof BraveSpan)) throw new IllegalArgumentException(
+        "Span must be an instance of brave.opentracing.BraveSpan, but was " + span.getClass());
+
+    BraveSpan wrappedSpan = (BraveSpan) span;
+    brave.Span rawSpan = wrappedSpan.unwrap();
+    SpanInScope spanInScope = tracer.withSpanInScope(rawSpan);
+    AtomicInteger refCount = getOrEstablishRefCount(rawSpan);
+    int newRefCount = refCount.incrementAndGet(); // todo remove debuggity
+    //System.out.printf("*********** making span %s active; refCount incremented to %d%n", Long.toHexString(rawSpan.context().spanId()), newRefCount);
+    return new BraveActiveSpan(this,
+        spanInScope,
+        wrappedSpan,
+        refCount);
+  }
+
+  private AtomicInteger getOrEstablishRefCount(brave.Span span) {
+    long spanId = span.context().spanId();
+    AtomicInteger refCount = refCounts.get(spanId);
+    if (refCount == null) {
+      refCount = new AtomicInteger(0);
+      refCounts.put(spanId, refCount);
     }
+    return refCount;
+  }
 
-    @Override
-    public ActiveSpan makeActive(Span span) {
-        if (span == null) {
-            return null;
-        }
-
-        if (span instanceof BraveSpan) {
-            BraveSpan wrappedSpan = (BraveSpan) span;
-            brave.Span rawSpan = wrappedSpan.unwrap();
-            SpanInScope spanInScope = tracer.withSpanInScope(rawSpan);
-            return new BraveActiveSpan(spanInScope,
-                                       wrappedSpan,
-                                       new AtomicInteger(1),
-                                       true);
-        }
-
-        throw new IllegalArgumentException("Span must be an instance of brave.opentracing.BraveSpan, but was " + span.getClass());
-    }
+  void deregisterSpan(brave.Span span) {
+    refCounts.remove(span.context().spanId());
+  }
 }

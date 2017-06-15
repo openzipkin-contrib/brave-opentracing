@@ -67,7 +67,7 @@ public final class BraveTracer implements Tracer {
    */
   public static BraveTracer create(Tracing brave4) {
     return newBuilder(brave4)
-            .setActiveSpanSource(new BraveActiveSpanSource(brave4))
+            .activeSpanSource(new BraveActiveSpanSource(brave4))
             .build();
   }
 
@@ -78,7 +78,7 @@ public final class BraveTracer implements Tracer {
    * {@link BraveActiveSpanSource} for its {@link ActiveSpanSource}.
    */
   public static Builder newBuilder(Tracing brave4) {
-    return new Builder(brave4).setActiveSpanSource(new BraveActiveSpanSource(brave4));
+    return new Builder(brave4).activeSpanSource(new BraveActiveSpanSource(brave4));
   }
 
   public static final class Builder {
@@ -94,7 +94,15 @@ public final class BraveTracer implements Tracer {
       formatToPropagation.put(Format.Builtin.TEXT_MAP, brave4.propagation());
     }
 
-    public Builder setActiveSpanSource(ActiveSpanSource activeSpanSource) {
+    /**
+     * By default, this builder uses BraveActiveSpanSource, which delegates management of the active
+     * span to Brave and acts as a simple wrapper. You can override with any other implementation,
+     * but beware that some implementations, e.g. opentracing-util's ThreadLocalActiveSpanSource,
+     * may not tell Brave about the active span. In these scenarios, you would need to use the
+     * OpenTracing APIs exclusively, as the Brave APIs would not function correctly, if at all.
+     */
+    public Builder activeSpanSource(ActiveSpanSource activeSpanSource) {
+      if (activeSpanSource == null) throw new NullPointerException("activeSpanSource == null");
       this.activeSpanSource = activeSpanSource;
       return this;
     }

@@ -69,7 +69,7 @@ public class BraveSpanTest {
   @Test public void spanKind_client() {
     tracer.buildSpan("foo")
         .withTag(Tags.SPAN_KIND.getKey(), Tags.SPAN_KIND_CLIENT)
-        .start().finish();
+        .startManual().finish();
 
     assertThat(zipkin.spanStore().getRawTraces())
         .flatExtracting(t -> t)
@@ -82,7 +82,7 @@ public class BraveSpanTest {
   @Test public void spanKind_server() {
     tracer.buildSpan("foo")
         .withTag(Tags.SPAN_KIND.getKey(), Tags.SPAN_KIND_SERVER)
-        .start().finish();
+        .startManual().finish();
 
     assertThat(zipkin.spanStore().getRawTraces())
         .flatExtracting(t -> t)
@@ -93,7 +93,7 @@ public class BraveSpanTest {
 
   /** Tags end up as string binary annotations */
   @Test public void startedSpan_setTag() {
-    Span span = tracer.buildSpan("foo").start();
+    Span span = tracer.buildSpan("foo").startManual();
     span.setTag("hello", "monster");
     span.finish();
 
@@ -107,7 +107,7 @@ public class BraveSpanTest {
   @Test public void shareSpanWhenParentIsExtracted() {
     Span spanClient = tracer.buildSpan("foo")
         .withTag(Tags.SPAN_KIND.getKey(), Tags.SPAN_KIND_CLIENT)
-        .start();
+        .startManual();
 
     Map<String, String> carrier = new LinkedHashMap<>();
     tracer.inject(spanClient.context(), Format.Builtin.TEXT_MAP, new TextMapInjectAdapter(carrier));
@@ -124,11 +124,11 @@ public class BraveSpanTest {
     Span spanServer = tracer2.buildSpan("foo")
         .asChildOf(extractedContext)
         .withTag(Tags.SPAN_KIND.getKey(), Tags.SPAN_KIND_SERVER)
-        .start();
+        .startManual();
 
     tracer2.buildSpan("bar")
         .asChildOf(spanServer)
-        .start()
+        .startManual()
         .finish();
 
     spanServer.finish();
@@ -148,7 +148,7 @@ public class BraveSpanTest {
   @Test public void testNotSampled_spanBuilder_newTrace() {
     tracer.buildSpan("foo")
         .withTag(Tags.SAMPLING_PRIORITY.getKey(), 0)
-        .start().finish();
+        .startManual().finish();
 
     assertThat(zipkin.spanStore().getRawTraces()).isEmpty();
   }
