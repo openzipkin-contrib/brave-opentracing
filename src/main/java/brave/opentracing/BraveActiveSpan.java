@@ -47,12 +47,7 @@ public final class BraveActiveSpan extends BraveBaseSpan<ActiveSpan> implements 
 
   @Override
   public void deactivate() {
-    int newRefCount = refCount.decrementAndGet();
-    // todo remove debuggity
-    //String spanId = Long.toHexString(wrapped.unwrap().context().spanId());
-    //System.out.printf("*********** deactivating span %s; refCount decremented to %d%n", spanId, newRefCount);
-    if (0 == newRefCount) {
-      //System.out.printf("*********** refCount is 0; finishing / closing / deregistering span %s%n", spanId);
+    if (0 == refCount.decrementAndGet()) {
       wrapped.finish();
       scope.close();
       source.deregisterSpan(wrapped.unwrap());
@@ -80,8 +75,6 @@ public final class BraveActiveSpan extends BraveBaseSpan<ActiveSpan> implements 
   public final class Continuation implements ActiveSpan.Continuation {
     Continuation() {
       refCount.incrementAndGet();
-      //int newRefCount = refCount.incrementAndGet();
-      //System.out.printf("*********** created continuation of span %s; refCount incremented to %d%n", Long.toHexString(wrapped.unwrap().context().spanId()), newRefCount);
     }
 
     @Override

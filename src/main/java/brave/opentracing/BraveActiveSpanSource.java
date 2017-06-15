@@ -60,8 +60,7 @@ final class BraveActiveSpanSource implements ActiveSpanSource {
     brave.Span rawSpan = wrappedSpan.unwrap();
     SpanInScope spanInScope = tracer.withSpanInScope(rawSpan);
     AtomicInteger refCount = getOrEstablishRefCount(rawSpan);
-    int newRefCount = refCount.incrementAndGet(); // todo remove debuggity
-    //System.out.printf("*********** making span %s active; refCount incremented to %d%n", Long.toHexString(rawSpan.context().spanId()), newRefCount);
+    refCount.incrementAndGet();
     return new BraveActiveSpan(this,
         spanInScope,
         wrappedSpan,
