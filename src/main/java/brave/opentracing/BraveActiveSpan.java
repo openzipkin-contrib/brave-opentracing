@@ -33,11 +33,25 @@ public final class BraveActiveSpan extends BraveBaseSpan<ActiveSpan> implements 
   private final AtomicInteger refCount;
 
   /**
+   * @param source the BraveActiveSpanSource that created this BraveActiveSpan
+   * @param scope a SpanInScope to be closed upon deactivation of this ActiveSpan
+   * @param wrapped the wrapped BraveSpan to which we will delegate all span operations
+   */
+  BraveActiveSpan(BraveActiveSpanSource source, SpanInScope scope, BraveSpan wrapped) {
+    super(wrapped.unwrap());
+    this.source = source;
+    this.scope = scope;
+    this.wrapped = wrapped;
+    this.refCount = new AtomicInteger(1);
+  }
+
+  /**
+   * @param source the BraveActiveSpanSource that created this BraveActiveSpan
    * @param scope a SpanInScope to be closed upon deactivation of this ActiveSpan
    * @param wrapped the wrapped BraveSpan to which we will delegate all span operations
    * @param refCount the total number of Continuations of this ActiveSpan (new instances should pass 1)
    */
-  BraveActiveSpan(BraveActiveSpanSource source, SpanInScope scope, BraveSpan wrapped, AtomicInteger refCount) {
+  private BraveActiveSpan(BraveActiveSpanSource source, SpanInScope scope, BraveSpan wrapped, AtomicInteger refCount) {
     super(wrapped.unwrap());
     this.source = source;
     this.scope = scope;

@@ -21,7 +21,6 @@ import io.opentracing.ActiveSpanSource;
 import io.opentracing.Span;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Manages the active Brave span.
@@ -30,7 +29,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * to do this, querying for the active span using the OpenTracing API will throw an exception.
  */
 final class BraveActiveSpanSource implements ActiveSpanSource {
-  private final Map<Long, AtomicInteger> refCounts = new ConcurrentHashMap<>();
+  private final Map<Long, BraveActiveSpan> activeSpans = new ConcurrentHashMap<>();
   private final Tracer tracer;
 
   BraveActiveSpanSource(Tracing brave4) {
@@ -44,10 +43,7 @@ final class BraveActiveSpanSource implements ActiveSpanSource {
       return null;
     }
 
-    return new BraveActiveSpan(this,
-        tracer.withSpanInScope(span),
-        BraveSpan.wrap(span),
-        getOrEstablishRefCount(span));
+    return getOrEstablishActiveSpan(span);
   }
 
   @Override
@@ -59,25 +55,20 @@ final class BraveActiveSpanSource implements ActiveSpanSource {
     BraveSpan wrappedSpan = (BraveSpan) span;
     brave.Span rawSpan = wrappedSpan.unwrap();
     SpanInScope spanInScope = tracer.withSpanInScope(rawSpan);
-    AtomicInteger refCount = getOrEstablishRefCount(rawSpan);
-    refCount.incrementAndGet();
-    return new BraveActiveSpan(this,
-        spanInScope,
-        wrappedSpan,
-        refCount);
+    return getOrEstablishActiveSpan(rawSpan);
   }
 
-  private AtomicInteger getOrEstablishRefCount(brave.Span span) {
+  private BraveActiveSpan getOrEstablishActiveSpan(brave.Span span) {
     long spanId = span.context().spanId();
-    AtomicInteger refCount = refCounts.get(spanId);
-    if (refCount == null) {
-      refCount = new AtomicInteger(0);
-      refCounts.put(spanId, refCount);
+    BraveActiveSpan braveActiveSpan = activeSpans.get(spanId);
+    if (braveActiveSpan == null) {
+      braveActiveSpan = new BraveActiveSpan(this, tracer.withSpanInScope(span), BraveSpan.wrap(span));
+      activeSpans.put(spanId, braveActiveSpan);
     }
-    return refCount;
+    return braveActiveSpan;
   }
 
   void deregisterSpan(brave.Span span) {
-    refCounts.remove(span.context().spanId());
+    activeSpans.remove(span.context().spanId());
   }
 }

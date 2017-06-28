@@ -24,7 +24,18 @@
   <description>Zipkin OpenTracing Brave bridge</description>
   <inceptionYear>2016</inceptionYear>
 
-  <version>0.21.0-SNAPSHOT</version>
+  <!--
+  version 0.21.0-SIRCON is based off of 0.20.0 and includes changes from this pull request:
+  https://github.com/openzipkin/brave-opentracing/pull/43
+
+  I'm making the -SIRCON version because we are locking down soon for the July 2017 maintenance
+  release and I don't think I can get the PR updated and pushed through in time.
+
+  Of note: BraveOpenTracingCurrentTraceContext shouldn't need to exist; it addresses a problem in
+  Brave itself. Those changes should be pushed down to Brave, a unit test added, and a separate
+  issue/PR created.
+  -->
+  <version>0.21.0-SIRCON</version>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
