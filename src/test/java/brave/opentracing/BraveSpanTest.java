@@ -39,7 +39,6 @@ public class BraveSpanTest {
   InMemoryStorage zipkin = new InMemoryStorage();
   BraveTracer tracer = BraveTracer.create(
       Tracing.newBuilder()
-          .currentTraceContext(new BraveOpenTracingCurrentTraceContext())
           .localServiceName("tracer")
           .reporter(s -> zipkin.spanConsumer().accept(Collections.singletonList(s))).build()
   );
@@ -115,7 +114,6 @@ public class BraveSpanTest {
 
     BraveTracer tracer2 = BraveTracer.create(
         Tracing.newBuilder()
-            .currentTraceContext(new BraveOpenTracingCurrentTraceContext())
             .localServiceName("tracer2")
             .reporter(s -> zipkin.spanConsumer().accept(Collections.singletonList(s))).build()
     );

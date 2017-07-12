@@ -47,14 +47,13 @@ final class BraveActiveSpanSource implements ActiveSpanSource {
   }
 
   @Override
-  public ActiveSpan makeActive(Span span) {
+  public BraveActiveSpan makeActive(Span span) {
     if (span == null) return null;
     if (!(span instanceof BraveSpan)) throw new IllegalArgumentException(
         "Span must be an instance of brave.opentracing.BraveSpan, but was " + span.getClass());
 
     BraveSpan wrappedSpan = (BraveSpan) span;
     brave.Span rawSpan = wrappedSpan.unwrap();
-    SpanInScope spanInScope = tracer.withSpanInScope(rawSpan);
     return getOrEstablishActiveSpan(rawSpan);
   }
 

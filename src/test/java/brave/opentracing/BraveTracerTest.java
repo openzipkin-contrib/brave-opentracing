@@ -45,7 +45,6 @@ public class BraveTracerTest {
 
   List<zipkin.Span> spans = new ArrayList<>();
   Tracing brave = Tracing.newBuilder()
-      .currentTraceContext(new BraveOpenTracingCurrentTraceContext())
       .reporter(spans::add)
       .build();
   BraveTracer opentracing = BraveTracer.create(brave);
@@ -199,14 +198,6 @@ public class BraveTracerTest {
   }
 
   @Test public void subsequentChildrenNestProperly_OTStyle() {
-    // this test verifies the fix for Brave's problematic behavior, which is addressed by
-    // BraveOpenTracingCurrentTraceContext. That fix will eventually need to be pushed down to
-    // Brave itself; this test should go with it.
-
-    // the behavior is triggered when a parent span (A) has two child spans (B and C), with B
-    // finishing before C starts. In the problematic case, C is logged as a child of B rather than
-    // of A.
-
     // this test is semantically identical to subsequentChildrenNestProperly_BraveStyle, but uses
     // the OpenTracingAPI instead of the Brave API.
 
@@ -237,14 +228,6 @@ public class BraveTracerTest {
   }
 
   @Test public void subsequentChildrenNestProperly_BraveStyle() {
-    // this test verifies the fix for Brave's problematic behavior, which is addressed by
-    // BraveOpenTracingCurrentTraceContext. That fix will eventually need to be pushed down to
-    // Brave itself; this test should go with it.
-
-    // the behavior is triggered when a parent span (A) has two child spans (B and C), with B
-    // finishing before C starts. In the problematic case, C is logged as a child of B rather than
-    // of A.
-
     // this test is semantically identical to subsequentChildrenNestProperly_OTStyle, but uses
     // the Brave API instead of the OpenTracing API.
 

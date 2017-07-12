@@ -66,13 +66,6 @@ public final class BraveTracer implements Tracer {
    * {@link BraveActiveSpanSource} for its {@link ActiveSpanSource}.
    */
   public static BraveTracer create(Tracing brave4) {
-    // todo re-enable
-    // todo longer-term, push the fix down to Brave's CurrentTraceContext impl's and get rid of this
-    //if (!(brave4.currentTraceContext() instanceof BraveOpenTracingCurrentTraceContext)) {
-    //  throw new IllegalArgumentException("The Tracing must use an instance of "
-    //      + "BraveOpenTracingCurrentTraceContext for its current trace context.");
-    //}
-
     return newBuilder(brave4)
             .activeSpanSource(new BraveActiveSpanSource(brave4))
             .build();
