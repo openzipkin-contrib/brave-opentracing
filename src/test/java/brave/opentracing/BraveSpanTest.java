@@ -102,7 +102,7 @@ public class BraveSpanTest {
         .containsExactly(tuple("hello", "monster"));
   }
 
-  @Test public void shareSpanWhenParentIsExtracted() {
+  @Test public void childSpanWhenParentIsExtracted() {
     Span spanClient = tracer.buildSpan("foo")
         .withTag(Tags.SPAN_KIND.getKey(), Tags.SPAN_KIND_CLIENT)
         .start();
@@ -136,7 +136,7 @@ public class BraveSpanTest {
     assertThat(spans).hasSize(3);
     assertThat(spans.get(0).traceId).isEqualTo(spans.get(1).traceId)
         .isEqualTo(spans.get(2).traceId);
-    assertThat(spans.get(1).id).isEqualTo(spans.get(2).id);
+    assertThat(spans.get(1).id).isNotEqualTo(spans.get(2).id);
     assertThat(spans.get(0).id).isNotEqualTo(spans.get(1).id);
 
     assertThat(zipkin.spanStore().getDependencies(System.currentTimeMillis(), null))
