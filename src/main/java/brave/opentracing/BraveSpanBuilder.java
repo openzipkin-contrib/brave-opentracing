@@ -130,7 +130,7 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
         }
       }
       span = braveTracer.newTrace(samplingFlags);
-    } else if (server) {
+    } else if (server && parent.shared()) {
       // Zipkin's default is to share a span ID between the client and the server in an RPC.
       // When we start a server span with a parent, we assume the "parent" is actually the
       // client on the other side of the RPC. Accordingly, we join that span instead of fork.

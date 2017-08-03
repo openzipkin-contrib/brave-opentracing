@@ -98,6 +98,21 @@
       <groupId>io.zipkin.brave</groupId>
       <artifactId>brave</artifactId>
       <version>4.5.1</version>
+
+      <!-- TODO: remove exclusion and explicit dependency on zipkin:1.29.0 once
+        brave releases a new version that depends on zipkin >= 1.29.0. -->
+      <exclusions>
+        <exclusion>
+          <groupId>io.zipkin.java</groupId>
+          <artifactId>zipkin</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>io.zipkin.java</groupId>
+      <artifactId>zipkin</artifactId>
+      <version>1.29.0</version>
     </dependency>
 
     <dependency>
