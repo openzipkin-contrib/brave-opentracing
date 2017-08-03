@@ -19,10 +19,14 @@ import brave.propagation.TraceContext;
 import brave.propagation.TraceContext.Extractor;
 import brave.propagation.TraceContext.Injector;
 import brave.propagation.TraceContextOrSamplingFlags;
+import io.opentracing.ActiveSpan;
+import io.opentracing.ActiveSpanSource;
+import io.opentracing.Span;
 import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
 import io.opentracing.propagation.Format;
 import io.opentracing.propagation.TextMap;
+
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -53,20 +57,34 @@ import java.util.Set;
  * @see Propagation
  */
 public final class BraveTracer implements Tracer {
+  private final brave.Tracer brave4;
+  private final ActiveSpanSource activeSpanSource;
+
   /**
-   * Returns an implementation of {@linkplain io.opentracing.Tracer} which delegates
-   * the the provided Brave {@linkplain brave.Tracing tracing} component.
+   * Returns an implementation of {@link Tracer} which delegates to the
+   * provided Brave {@link Tracing} component and uses an instance of
+   * {@link BraveActiveSpanSource} for its {@link ActiveSpanSource}.
    */
   public static BraveTracer create(Tracing brave4) {
-    return newBuilder(brave4).build();
+    return newBuilder(brave4)
+            .activeSpanSource(new BraveActiveSpanSource(brave4))
+            .build();
   }
 
+  /**
+   * Returns a {@link Builder} configured with the provided Brave
+   * {@link Tracing}
+   * provided Brave {@link Tracing} component and uses an instance of
+   * {@link BraveActiveSpanSource} for its {@link ActiveSpanSource}.
+   */
   public static Builder newBuilder(Tracing brave4) {
-    return new Builder(brave4);
+    return new Builder(brave4).activeSpanSource(new BraveActiveSpanSource(brave4));
   }
 
   public static final class Builder {
     Tracing brave4;
+    ActiveSpanSource activeSpanSource;
+
     Map<Format<TextMap>, Propagation<String>> formatToPropagation = new LinkedHashMap<>();
 
     Builder(Tracing brave4) {
@@ -74,6 +92,19 @@ public final class BraveTracer implements Tracer {
       this.brave4 = brave4;
       formatToPropagation.put(Format.Builtin.HTTP_HEADERS, brave4.propagation());
       formatToPropagation.put(Format.Builtin.TEXT_MAP, brave4.propagation());
+    }
+
+    /**
+     * By default, this builder uses BraveActiveSpanSource, which delegates management of the active
+     * span to Brave and acts as a simple wrapper. You can override with any other implementation,
+     * but beware that some implementations, e.g. opentracing-util's ThreadLocalActiveSpanSource,
+     * may not tell Brave about the active span. In these scenarios, you would need to use the
+     * OpenTracing APIs exclusively, as the Brave APIs would not function correctly, if at all.
+     */
+    public Builder activeSpanSource(ActiveSpanSource activeSpanSource) {
+      if (activeSpanSource == null) throw new NullPointerException("activeSpanSource == null");
+      this.activeSpanSource = activeSpanSource;
+      return this;
     }
 
     /**
@@ -105,23 +136,33 @@ public final class BraveTracer implements Tracer {
     }
   }
 
-  final brave.Tracer brave4;
   final Map<Format<TextMap>, Injector<TextMap>> formatToInjector = new LinkedHashMap<>();
   final Map<Format<TextMap>, Extractor<TextMap>> formatToExtractor = new LinkedHashMap<>();
 
   BraveTracer(Builder b) {
     brave4 = b.brave4.tracer();
+    activeSpanSource = b.activeSpanSource;
     for (Map.Entry<Format<TextMap>, Propagation<String>> entry : b.formatToPropagation.entrySet()) {
       formatToInjector.put(entry.getKey(), entry.getValue().injector(TextMap::put));
       formatToExtractor.put(entry.getKey(), new TextMapExtractorAdaptor(entry.getValue()));
     }
   }
 
+  @Override
+  public ActiveSpan activeSpan() {
+    return activeSpanSource.activeSpan();
+  }
+
+  @Override
+  public ActiveSpan makeActive(Span span) {
+    return activeSpanSource.makeActive(span);
+  }
+
   /**
    * {@inheritDoc}
    */
   @Override public SpanBuilder buildSpan(String operationName) {
-    return new BraveSpanBuilder(brave4, operationName);
+    return new BraveSpanBuilder(this, brave4, operationName);
   }
 
   /**

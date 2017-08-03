@@ -13,23 +13,28 @@
  */
 package brave.opentracing;
 
+import brave.Span;
+import brave.Tracer.SpanInScope;
 import brave.Tracing;
 import brave.propagation.Propagation;
 import brave.propagation.TraceContext;
+import io.opentracing.ActiveSpan;
 import io.opentracing.propagation.Format;
 import io.opentracing.propagation.TextMap;
 import io.opentracing.propagation.TextMapExtractAdapter;
 import io.opentracing.propagation.TextMapInjectAdapter;
+import org.junit.Test;
+import zipkin.Constants;
+
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import org.junit.Test;
-import zipkin.Constants;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.assertj.core.data.MapEntry.entry;
+import static org.junit.Assert.assertEquals;
 import static zipkin.internal.Util.UTF_8;
 
 /**
@@ -39,15 +44,18 @@ import static zipkin.internal.Util.UTF_8;
 public class BraveTracerTest {
 
   List<zipkin.Span> spans = new ArrayList<>();
-  Tracing brave = Tracing.newBuilder().reporter(spans::add).build();
+  Tracing brave = Tracing.newBuilder()
+      .reporter(spans::add)
+      .build();
   BraveTracer opentracing = BraveTracer.create(brave);
 
   @Test public void startWithOpenTracingAndFinishWithBrave() {
     io.opentracing.Span openTracingSpan = opentracing.buildSpan("encode")
         .withTag(Constants.LOCAL_COMPONENT, "codec")
-        .withStartTimestamp(1L).start();
+        .withStartTimestamp(1L)
+        .startManual();
 
-    brave.Span braveSpan = ((BraveSpan) openTracingSpan).unwrap();
+    Span braveSpan = ((BraveSpan) openTracingSpan).unwrap();
 
     braveSpan.annotate(2L, "pump fake");
     braveSpan.finish(3L);
@@ -56,7 +64,7 @@ public class BraveTracerTest {
   }
 
   @Test public void startWithBraveAndFinishWithOpenTracing() {
-    brave.Span braveSpan = brave.tracer().newTrace().name("encode")
+    Span braveSpan = brave.tracer().newTrace().name("encode")
         .tag(Constants.LOCAL_COMPONENT, "codec")
         .start(1L);
 
@@ -187,5 +195,81 @@ public class BraveTracerTest {
           assertThat(s.duration).isEqualTo(2L);
         }
     );
+  }
+
+  @Test public void subsequentChildrenNestProperly_OTStyle() {
+    // this test is semantically identical to subsequentChildrenNestProperly_BraveStyle, but uses
+    // the OpenTracingAPI instead of the Brave API.
+
+    Long idOfSpanA;
+    Long shouldBeIdOfSpanA;
+    Long idOfSpanB;
+    Long shouldBeIdOfSpanB;
+    Long parentIdOfSpanB;
+    Long parentIdOfSpanC;
+
+    try (ActiveSpan spanA = opentracing.buildSpan("spanA").startActive()) {
+      idOfSpanA = getTraceContext(spanA).spanId();
+      try (ActiveSpan spanB = opentracing.buildSpan("spanB").startActive()) {
+        idOfSpanB = getTraceContext(spanB).spanId();
+        parentIdOfSpanB = getTraceContext(spanB).parentId();
+        shouldBeIdOfSpanB = getTraceContext(opentracing.activeSpan()).spanId();
+      }
+      shouldBeIdOfSpanA = getTraceContext(opentracing.activeSpan()).spanId();
+      try (ActiveSpan spanC = opentracing.buildSpan("spanC").startActive()) {
+        parentIdOfSpanC = getTraceContext(spanC).parentId();
+      }
+    }
+
+    assertEquals("SpanA should have been active again after closing B", idOfSpanA, shouldBeIdOfSpanA);
+    assertEquals("SpanB should have been active prior to its closure", idOfSpanB, shouldBeIdOfSpanB);
+    assertEquals("SpanB's parent should be SpanA", idOfSpanA, parentIdOfSpanB);
+    assertEquals("SpanC's parent should be SpanA", idOfSpanA, parentIdOfSpanC);
+  }
+
+  @Test public void subsequentChildrenNestProperly_BraveStyle() {
+    // this test is semantically identical to subsequentChildrenNestProperly_OTStyle, but uses
+    // the Brave API instead of the OpenTracing API.
+
+    Long shouldBeIdOfSpanA;
+    Long idOfSpanB;
+    Long shouldBeIdOfSpanB;
+    Long parentIdOfSpanB;
+    Long parentIdOfSpanC;
+
+    Span spanA = brave.tracer().newTrace().name("spanA").start();
+    Long idOfSpanA = spanA.context().spanId();
+    try (SpanInScope scopeA = brave.tracer().withSpanInScope(spanA)) {
+
+      Span spanB = brave.tracer().newChild(spanA.context()).name("spanB").start();
+      idOfSpanB = spanB.context().spanId();
+      parentIdOfSpanB = spanB.context().parentId();
+      try (SpanInScope scopeB = brave.tracer().withSpanInScope(spanB)) {
+        shouldBeIdOfSpanB = brave.currentTraceContext().get().spanId();
+      } finally {
+        spanB.finish();
+      }
+
+      shouldBeIdOfSpanA = brave.currentTraceContext().get().spanId();
+
+      Span spanC = brave.tracer().newChild(spanA.context()).name("spanC").start();
+      parentIdOfSpanC = spanC.context().parentId();
+      try (SpanInScope scopeC = brave.tracer().withSpanInScope(spanC)) {
+        // nothing to do here
+      } finally {
+        spanC.finish();
+      }
+    } finally {
+      spanA.finish();
+    }
+
+    assertEquals("SpanA should have been active again after closing B", idOfSpanA, shouldBeIdOfSpanA);
+    assertEquals("SpanB should have been active prior to its closure", idOfSpanB, shouldBeIdOfSpanB);
+    assertEquals("SpanB's parent should be SpanA", idOfSpanA, parentIdOfSpanB);
+    assertEquals("SpanC's parent should be SpanA", idOfSpanA, parentIdOfSpanC);
+  }
+
+  private static TraceContext getTraceContext(ActiveSpan span) {
+    return ((BraveSpanContext) span.context()).unwrap();
   }
 }
