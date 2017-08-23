@@ -23,6 +23,7 @@ import io.opentracing.propagation.Format;
 import io.opentracing.propagation.TextMap;
 import io.opentracing.propagation.TextMapExtractAdapter;
 import io.opentracing.propagation.TextMapInjectAdapter;
+import java.nio.charset.Charset;
 import org.junit.Test;
 import zipkin.Constants;
 
@@ -35,7 +36,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.assertj.core.data.MapEntry.entry;
 import static org.junit.Assert.assertEquals;
-import static zipkin.internal.Util.UTF_8;
 
 /**
  * This shows how one might make an OpenTracing adapter for Brave, and how to navigate in and out
@@ -190,7 +190,8 @@ public class BraveTracerTest {
           assertThat(s.timestamp).isEqualTo(1L);
           assertThat(s.annotations).extracting(a -> a.timestamp, a -> a.value)
               .containsExactly(tuple(2L, "pump fake"));
-          assertThat(s.binaryAnnotations).extracting(b -> b.key, b -> new String(b.value, UTF_8))
+          assertThat(s.binaryAnnotations)
+              .extracting(b -> b.key, b -> new String(b.value, Charset.forName("UTF-8")))
               .containsExactly(tuple(Constants.LOCAL_COMPONENT, "codec"));
           assertThat(s.duration).isEqualTo(2L);
         }
