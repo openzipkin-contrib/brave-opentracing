@@ -20,7 +20,7 @@
   <groupId>io.opentracing.brave</groupId>
   <artifactId>brave-opentracing</artifactId>
   <name>Zipkin OpenTracing Brave</name>
-  <url>https://github.com/openzipkin/opentracing-brave</url>
+  <url>https://github.com/openzipkin-contrib/opentracing-brave</url>
   <description>Zipkin OpenTracing Brave bridge</description>
   <inceptionYear>2016</inceptionYear>
 
@@ -55,9 +55,9 @@
   </licenses>
 
   <scm>
-    <url>https://github.com/openzipkin/brave-opentracing</url>
-    <connection>scm:git:https://github.com/openzipkin/brave-opentracing.git</connection>
-    <developerConnection>scm:git:https://github.com/openzipkin/brave-opentracing.git
+    <url>https://github.com/openzipkin-contrib/brave-opentracing</url>
+    <connection>scm:git:https://github.com/openzipkin-contrib/brave-opentracing.git</connection>
+    <developerConnection>scm:git:https://github.com/openzipkin-contrib/brave-opentracing.git
     </developerConnection>
     <tag>HEAD</tag>
   </scm>
@@ -84,7 +84,7 @@
 
   <issueManagement>
     <system>Github</system>
-    <url>https://github.com/openzipkin/brave-opentracing/issues</url>
+    <url>https://github.com/openzipkin-contrib/brave-opentracing/issues</url>
   </issueManagement>
 
   <dependencies>

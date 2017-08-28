@@ -107,7 +107,7 @@ Code in the second process
 
 This code repeats from process to process, as far through the stack as required.
 
-   [ci-img]: https://travis-ci.org/openzipkin/brave-opentracing.svg?branch=master
-   [ci]: https://travis-ci.org/openzipkin/brave-opentracing
+   [ci-img]: https://travis-ci.org/openzipkin-contrib/brave-opentracing.svg?branch=master
+   [ci]: https://travis-ci.org/openzipkin-contrib/brave-opentracing
    [maven-img]: https://img.shields.io/maven-central/v/io.opentracing.brave/brave-opentracing.svg?maxAge=2592000
    [maven]: http://search.maven.org/#search%7Cga%7C1%7Cbrave-opentracing
