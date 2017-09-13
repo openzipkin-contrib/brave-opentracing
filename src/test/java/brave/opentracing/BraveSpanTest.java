@@ -21,26 +21,34 @@ import io.opentracing.propagation.Format;
 import io.opentracing.propagation.TextMapExtractAdapter;
 import io.opentracing.propagation.TextMapInjectAdapter;
 import io.opentracing.tag.Tags;
+import java.io.IOException;
 import org.junit.Before;
 import org.junit.Test;
-import zipkin.Constants;
-import zipkin.DependencyLink;
-import zipkin.storage.InMemoryStorage;
+import zipkin2.Call;
+import zipkin2.DependencyLink;
+import zipkin2.storage.InMemoryStorage;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static java.util.concurrent.TimeUnit.DAYS;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.tuple;
+import static org.assertj.core.api.Assertions.entry;
 
 public class BraveSpanTest {
-  InMemoryStorage zipkin = new InMemoryStorage();
+  InMemoryStorage zipkin = InMemoryStorage.newBuilder().build();
   BraveTracer tracer = BraveTracer.create(
       Tracing.newBuilder()
           .localServiceName("tracer")
-          .reporter(s -> zipkin.spanConsumer().accept(Collections.singletonList(s))).build()
+          .spanReporter(s -> {
+            try {
+              zipkin.spanConsumer().accept(Collections.singletonList(s)).execute();
+            } catch (IOException e) {
+              throw new AssertionError(e);
+            }
+          }).build()
   );
 
   @Before public void clear() {
@@ -52,7 +60,7 @@ public class BraveSpanTest {
     try (ActiveSpan span = tracer.buildSpan("foo").startActive()) {
     }
 
-    assertThat(zipkin.spanStore().getRawTraces())
+    assertThat(zipkin.spanStore().getTraces())
         .hasSize(1);
   }
 
@@ -61,7 +69,7 @@ public class BraveSpanTest {
       span.deactivate(); // user closes and also auto-close closes
     }
 
-    assertThat(zipkin.spanStore().getRawTraces())
+    assertThat(zipkin.spanStore().getTraces())
         .hasSize(1);
   }
 
@@ -71,11 +79,10 @@ public class BraveSpanTest {
         .withTag(Tags.SPAN_KIND.getKey(), Tags.SPAN_KIND_CLIENT)
         .startManual().finish();
 
-    assertThat(zipkin.spanStore().getRawTraces())
+    assertThat(zipkin.spanStore().getTraces())
         .flatExtracting(t -> t)
-        .flatExtracting(s -> s.annotations)
-        .extracting(a -> a.value)
-        .containsExactly(Constants.CLIENT_SEND, Constants.CLIENT_RECV);
+        .flatExtracting(zipkin2.Span::kind)
+        .containsExactly(zipkin2.Span.Kind.CLIENT);
   }
 
   /** Span kind should be set at builder, not after start */
@@ -84,11 +91,10 @@ public class BraveSpanTest {
         .withTag(Tags.SPAN_KIND.getKey(), Tags.SPAN_KIND_SERVER)
         .startManual().finish();
 
-    assertThat(zipkin.spanStore().getRawTraces())
+    assertThat(zipkin.spanStore().getTraces())
         .flatExtracting(t -> t)
-        .flatExtracting(s -> s.annotations)
-        .extracting(a -> a.value)
-        .containsExactly(Constants.SERVER_RECV, Constants.SERVER_SEND);
+        .flatExtracting(zipkin2.Span::kind)
+        .containsExactly(zipkin2.Span.Kind.SERVER);
   }
 
   /** Tags end up as string binary annotations */
@@ -97,14 +103,13 @@ public class BraveSpanTest {
     span.setTag("hello", "monster");
     span.finish();
 
-    assertThat(zipkin.spanStore().getRawTraces())
+    assertThat(zipkin.spanStore().getTraces())
         .flatExtracting(t -> t)
-        .flatExtracting(s -> s.binaryAnnotations)
-        .extracting(b -> b.key, b -> new String(b.value))
-        .containsExactly(tuple("hello", "monster"));
+        .flatExtracting(s -> s.tags().entrySet())
+        .containsExactly(entry("hello", "monster"));
   }
 
-  @Test public void childSpanWhenParentIsExtracted() {
+  @Test public void childSpanWhenParentIsExtracted() throws IOException {
     Span spanClient = tracer.buildSpan("foo")
         .withTag(Tags.SPAN_KIND.getKey(), Tags.SPAN_KIND_CLIENT)
         .startManual();
@@ -115,7 +120,13 @@ public class BraveSpanTest {
     BraveTracer tracer2 = BraveTracer.create(
         Tracing.newBuilder()
             .localServiceName("tracer2")
-            .reporter(s -> zipkin.spanConsumer().accept(Collections.singletonList(s))).build()
+            .spanReporter(s -> {
+              try {
+                zipkin.spanConsumer().accept(Collections.singletonList(s)).execute();
+              } catch (IOException e) {
+                throw new AssertionError(e);
+              }
+            }).build()
     );
 
     SpanContext extractedContext =
@@ -134,15 +145,19 @@ public class BraveSpanTest {
     spanServer.finish();
     spanClient.finish();
 
-    List<zipkin.Span> spans = zipkin.spanStore().getRawTraces().get(0);
+    List<zipkin2.Span> spans = zipkin.spanStore().getTraces().get(0);
     assertThat(spans).hasSize(3);
-    assertThat(spans.get(0).traceId).isEqualTo(spans.get(1).traceId)
-        .isEqualTo(spans.get(2).traceId);
-    assertThat(spans.get(1).id).isNotEqualTo(spans.get(2).id);
-    assertThat(spans.get(0).id).isNotEqualTo(spans.get(1).id);
+    assertThat(spans.get(0).traceId()).isEqualTo(spans.get(1).traceId())
+        .isEqualTo(spans.get(2).traceId());
+    assertThat(spans.get(1).id()).isNotEqualTo(spans.get(2).id());
+    assertThat(spans.get(0).id()).isNotEqualTo(spans.get(1).id());
 
-    assertThat(zipkin.spanStore().getDependencies(System.currentTimeMillis(), null))
-        .containsExactly(DependencyLink.create("tracer", "tracer2", 1L));
+    Call<List<DependencyLink>> dependenciesCall =
+        zipkin.spanStore().getDependencies(System.currentTimeMillis(), DAYS.toMillis(1));
+
+    assertThat(dependenciesCall.execute()).containsExactly(
+        DependencyLink.newBuilder().parent("tracer").child("tracer2").callCount(1L).build()
+    );
   }
 
   @Test public void testNotSampled_spanBuilder_newTrace() {
@@ -150,6 +165,6 @@ public class BraveSpanTest {
         .withTag(Tags.SAMPLING_PRIORITY.getKey(), 0)
         .startManual().finish();
 
-    assertThat(zipkin.spanStore().getRawTraces()).isEmpty();
+    assertThat(zipkin.spanStore().getTraces()).isEmpty();
   }
 }
