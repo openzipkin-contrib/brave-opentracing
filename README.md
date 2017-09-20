@@ -17,14 +17,14 @@ Firstly, you need a Tracer, configured to [report to Zipkin](https://github.com/
 ```java
 // Configure a reporter, which controls how often spans are sent
 //   (the dependency is io.zipkin.reporter:zipkin-sender-okhttp3)
-sender = OkHttpSender.create("http://127.0.0.1:9411/api/v1/spans");
-reporter = AsyncReporter.builder(sender).build();
+sender = OkHttpSender.json("http://127.0.0.1:9411/api/v2/spans");
+spanReporter = AsyncReporter.v2(sender);
 
 // Now, create a Brave tracing component with the service name you want to see in Zipkin.
 //   (the dependency is io.zipkin.brave:brave)
 braveTracing = Tracing.newBuilder()
                       .localServiceName("my-service")
-                      .reporter(reporter)
+                      .spanReporter(spanReporter)
                       .build();
 
 // use this to create an OpenTracing Tracer
@@ -32,6 +32,14 @@ tracer = BraveTracer.create(braveTracing);
 
 // You can later unwrap the underlying Brave Api as needed
 braveTracer = tracer.unwrap();
+```
+
+Note: if you haven't updated to a server running the [Zipkin v2 api](http://zipkin.io/zipkin-api/#/default/post_spans), you
+can use the old Zipkin format like this:
+
+```java
+sender = OkHttpSender.json("http://127.0.0.1:9411/api/v1/spans");
+spanReporter = AsyncReporter.builder(sender).build(SpanEncoder.JSON_V1);
 ```
 
 ## Usage

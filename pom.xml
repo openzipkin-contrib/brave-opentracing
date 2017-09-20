@@ -34,6 +34,8 @@
     <main.java.version>1.7</main.java.version>
     <main.signature.artifact>java17</main.signature.artifact>
 
+    <brave.version>4.7.2</brave.version>
+
     <!-- default bytecode version for src/test -->
     <maven.compiler.source>1.8</maven.compiler.source>
     <maven.compiler.target>1.8</maven.compiler.target>
@@ -93,26 +95,10 @@
       <artifactId>opentracing-api</artifactId>
       <version>0.30.0</version>
     </dependency>
-
     <dependency>
       <groupId>io.zipkin.brave</groupId>
       <artifactId>brave</artifactId>
-      <version>4.5.1</version>
-
-      <!-- TODO: remove exclusion and explicit dependency on zipkin:1.29.0 once
-        brave releases a new version that depends on zipkin >= 1.29.0. -->
-      <exclusions>
-        <exclusion>
-          <groupId>io.zipkin.java</groupId>
-          <artifactId>zipkin</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-
-    <dependency>
-      <groupId>io.zipkin.java</groupId>
-      <artifactId>zipkin</artifactId>
-      <version>1.29.0</version>
+      <version>${brave.version}</version>
     </dependency>
 
     <dependency>
@@ -120,6 +106,11 @@
       <artifactId>junit</artifactId>
       <version>4.12</version>
       <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.zipkin.brave</groupId>
+      <artifactId>brave-tests</artifactId>
+      <version>${brave.version}</version>
     </dependency>
     <dependency>
       <groupId>org.mockito</groupId>
@@ -162,9 +153,24 @@
             <configuration>
               <source>${maven.compiler.source}</source>
               <target>${maven.compiler.target}</target>
+              <compilerId>javac-with-errorprone</compilerId>
+              <forceJavacCompilerUse>true</forceJavacCompilerUse>
+              <showWarnings>true</showWarnings>
             </configuration>
           </execution>
         </executions>
+        <dependencies>
+          <dependency>
+            <groupId>org.codehaus.plexus</groupId>
+            <artifactId>plexus-compiler-javac-errorprone</artifactId>
+            <version>2.8.2</version>
+          </dependency>
+          <dependency>
+            <groupId>com.google.errorprone</groupId>
+            <artifactId>error_prone_core</artifactId>
+            <version>2.1.1</version>
+          </dependency>
+        </dependencies>
       </plugin>
 
       <plugin>
@@ -179,6 +185,7 @@
             <configuration>
               <target>${main.java.version}</target>
               <fork>true</fork>
+              <quiet>true</quiet>
             </configuration>
           </execution>
         </executions>
@@ -188,7 +195,7 @@
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>animal-sniffer-maven-plugin</artifactId>
-        <version>1.15</version>
+        <version>1.16</version>
         <configuration>
           <signature>
             <groupId>org.codehaus.mojo.signature</groupId>
