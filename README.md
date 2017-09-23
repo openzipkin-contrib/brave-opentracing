@@ -16,9 +16,9 @@ Firstly, you need a Tracer, configured to [report to Zipkin](https://github.com/
 
 ```java
 // Configure a reporter, which controls how often spans are sent
-//   (the dependency is io.zipkin.reporter:zipkin-sender-okhttp3)
-sender = OkHttpSender.json("http://127.0.0.1:9411/api/v2/spans");
-spanReporter = AsyncReporter.v2(sender);
+//   (the dependency is io.zipkin.reporter2:zipkin-sender-okhttp3)
+sender = OkHttpSender.create("http://127.0.0.1:9411/api/v2/spans");
+spanReporter = AsyncReporter.create(sender);
 
 // Now, create a Brave tracing component with the service name you want to see in Zipkin.
 //   (the dependency is io.zipkin.brave:brave)
