@@ -207,9 +207,9 @@ public class BraveTracerTest {
 
     try (Scope scopeA = opentracing.buildSpan("spanA").startActive()) {
       idOfSpanA = getTraceContext(scopeA).spanId();
-      try (Scope spanB = opentracing.buildSpan("spanB").startActive()) {
-        idOfSpanB = getTraceContext(spanB).spanId();
-        parentIdOfSpanB = getTraceContext(spanB).parentId();
+      try (Scope scopeB = opentracing.buildSpan("spanB").startActive()) {
+        idOfSpanB = getTraceContext(scopeB).spanId();
+        parentIdOfSpanB = getTraceContext(scopeB).parentId();
         shouldBeIdOfSpanB = getTraceContext(opentracing.scopeManager().active()).spanId();
       }
       shouldBeIdOfSpanA = getTraceContext(opentracing.scopeManager().active()).spanId();
