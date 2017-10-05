@@ -23,8 +23,8 @@ import java.util.Map.Entry;
 /**
  * Holds the {@linkplain brave.Span} used by the underlying {@linkplain brave.Tracer}.\
  *
- * <p>This type also includes hooks to integrate with the underlying {@linkplain brave.Tracer}.
- * Ex you can access the underlying span with {@link #unwrap}
+ * <p>This type also includes hooks to integrate with the underlying {@linkplain brave.Tracer}. Ex
+ * you can access the underlying span with {@link #unwrap}
  */
 public final class BraveSpan implements Span {
 
@@ -52,16 +52,10 @@ public final class BraveSpan implements Span {
     return delegate;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override public SpanContext context() {
     return context;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override public Span setTag(String key, String value) {
     delegate.tag(key, value);
 
@@ -73,32 +67,20 @@ public final class BraveSpan implements Span {
     return this;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override public Span setTag(String key, boolean value) {
     return setTag(key, Boolean.toString(value));
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override public Span setTag(String key, Number value) {
     return setTag(key, value.toString());
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override public Span log(Map<String, ?> fields) {
     if (fields.isEmpty()) return this;
     // in real life, do like zipkin-go-opentracing: "key1=value1 key2=value2"
     return log(toAnnotation(fields));
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override public Span log(long timestampMicroseconds, Map<String, ?> fields) {
     if (fields.isEmpty()) return this;
     // in real life, do like zipkin-go-opentracing: "key1=value1 key2=value2"
@@ -128,25 +110,19 @@ public final class BraveSpan implements Span {
     return result.toString();
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override public Span log(String event) {
     delegate.annotate(event);
     return this;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override public Span log(long timestampMicroseconds, String event) {
     delegate.annotate(timestampMicroseconds, event);
     return this;
   }
 
   /**
-   * This is a NOOP as neither <a href="https://github.com/openzipkin/b3-propagation">B3</a>
-   * nor Brave include baggage support.
+   * This is a NOOP as neither <a href="https://github.com/openzipkin/b3-propagation">B3</a> nor
+   * Brave include baggage support.
    */
   // OpenTracing could one day define a way to plug-in arbitrary baggage handling similar to how
   // it has feature-specific apis like active-span
@@ -155,8 +131,8 @@ public final class BraveSpan implements Span {
   }
 
   /**
-   * Returns null as neither <a href="https://github.com/openzipkin/b3-propagation">B3</a>
-   * nor Brave include baggage support.
+   * Returns null as neither <a href="https://github.com/openzipkin/b3-propagation">B3</a> nor Brave
+   * include baggage support.
    */
   // OpenTracing could one day define a way to plug-in arbitrary baggage handling similar to how
   // it has feature-specific apis like active-span
@@ -164,24 +140,15 @@ public final class BraveSpan implements Span {
     return null;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override public Span setOperationName(String operationName) {
     delegate.name(operationName);
     return this;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override public void finish() {
     delegate.finish();
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override public void finish(long finishMicros) {
     delegate.finish(finishMicros);
   }

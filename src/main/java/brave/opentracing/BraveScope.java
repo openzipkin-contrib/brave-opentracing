@@ -18,8 +18,8 @@ import io.opentracing.Scope;
 import io.opentracing.Span;
 
 /**
- * {@link BraveScope} is a simple {@link Scope} implementation that wraps the
- * corresponding BraveSpan.
+ * {@link BraveScope} is a simple {@link Scope} implementation that wraps the corresponding
+ * BraveSpan.
  *
  * @see BraveSpan
  * @see BraveScopeManager
@@ -35,27 +35,22 @@ public final class BraveScope implements Scope {
    * @param scope a SpanInScope to be closed upon deactivation of this ActiveSpan
    * @param wrapped the wrapped BraveSpan to which we will delegate all span operations
    */
-  BraveScope(BraveScopeManager source, SpanInScope scope, BraveSpan wrapped, boolean finishSpanOnClose) {
+  BraveScope(BraveScopeManager source, SpanInScope scope, BraveSpan wrapped,
+      boolean finishSpanOnClose) {
     this.source = source;
     this.scope = scope;
     this.wrapped = wrapped;
     this.finishSpanOnClose = finishSpanOnClose;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override public void close() {
-      if (finishSpanOnClose) {
-        wrapped.finish();
-      }
-      scope.close();
-      source.deregisterSpan(wrapped.unwrap());
+    if (finishSpanOnClose) {
+      wrapped.finish();
+    }
+    scope.close();
+    source.deregisterSpan(wrapped.unwrap());
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override public Span span() {
     return wrapped;
   }

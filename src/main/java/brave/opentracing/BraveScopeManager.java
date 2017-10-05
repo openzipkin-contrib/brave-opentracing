@@ -35,9 +35,6 @@ final class BraveScopeManager implements ScopeManager {
     tracer = brave4.tracer();
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override public Scope active() {
     brave.Span span = tracer.currentSpan();
     if (span == null) {
@@ -47,20 +44,16 @@ final class BraveScopeManager implements ScopeManager {
     return getOrEstablishActiveSpan(span, false);
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override public BraveScope activate(Span span) {
     return activate(span, true);
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override public BraveScope activate(Span span, boolean finishSpanOnClose) {
     if (span == null) return null;
-    if (!(span instanceof BraveSpan)) throw new IllegalArgumentException(
-        "Span must be an instance of brave.opentracing.BraveSpan, but was " + span.getClass());
+    if (!(span instanceof BraveSpan)) {
+      throw new IllegalArgumentException(
+          "Span must be an instance of brave.opentracing.BraveSpan, but was " + span.getClass());
+    }
 
     BraveSpan wrappedSpan = (BraveSpan) span;
     brave.Span rawSpan = wrappedSpan.unwrap();
@@ -71,7 +64,8 @@ final class BraveScopeManager implements ScopeManager {
     long spanId = span.context().spanId();
     BraveScope braveScope = activeSpans.get(spanId);
     if (braveScope == null) {
-      braveScope = new BraveScope(this, tracer.withSpanInScope(span), BraveSpan.wrap(span), finishSpanOnClose);
+      braveScope = new BraveScope(this, tracer.withSpanInScope(span), BraveSpan.wrap(span),
+          finishSpanOnClose);
       activeSpans.put(spanId, braveScope);
     }
     return braveScope;

@@ -59,21 +59,20 @@ public final class BraveTracer implements Tracer {
   private final ScopeManager scopeManager;
 
   /**
-   * Returns an implementation of {@link Tracer} which delegates to the
-   * provided Brave {@link Tracing} component and uses an instance of
-   * {@link BraveScopeManager} for its {@link ScopeManager}.
+   * Returns an implementation of {@link Tracer} which delegates to the provided Brave {@link
+   * Tracing} component and uses an instance of {@link BraveScopeManager} for its {@link
+   * ScopeManager}.
    */
   public static BraveTracer create(Tracing brave4) {
     return newBuilder(brave4)
-            .activeScopeManager(new BraveScopeManager(brave4))
-            .build();
+        .activeScopeManager(new BraveScopeManager(brave4))
+        .build();
   }
 
   /**
-   * Returns a {@link Builder} configured with the provided Brave
-   * {@link Tracing}
-   * provided Brave {@link Tracing} component and uses an instance of
-   * {@link BraveScopeManager} for its {@link ScopeManager}.
+   * Returns a {@link Builder} configured with the provided Brave {@link Tracing} provided Brave
+   * {@link Tracing} component and uses an instance of {@link BraveScopeManager} for its {@link
+   * ScopeManager}.
    */
   public static Builder newBuilder(Tracing brave4) {
     return new Builder(brave4).activeScopeManager(new BraveScopeManager(brave4));
@@ -106,10 +105,10 @@ public final class BraveTracer implements Tracer {
     }
 
     /**
-     * By default, {@link Format.Builtin#HTTP_HEADERS} and {@link Format.Builtin#TEXT_MAP} use
-     * the propagation mechanism supplied by {@link Tracing#propagation()}, which defaults to
-     * {@link Propagation#B3_STRING B3 Propagation}. You can override or add different formats using
-     * this method.
+     * By default, {@link Format.Builtin#HTTP_HEADERS} and {@link Format.Builtin#TEXT_MAP} use the
+     * propagation mechanism supplied by {@link Tracing#propagation()}, which defaults to {@link
+     * Propagation#B3_STRING B3 Propagation}. You can override or add different formats using this
+     * method.
      *
      * <p>For example, instead of using implicit format keys in your code, you might want to
      * explicitly declare you are using B3. To do so, you'd do setup the tracer like this:
@@ -146,16 +145,10 @@ public final class BraveTracer implements Tracer {
     }
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override public ScopeManager scopeManager() {
     return scopeManager;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override public SpanBuilder buildSpan(String operationName) {
     return new BraveSpanBuilder(this, brave4, operationName);
   }
@@ -189,8 +182,8 @@ public final class BraveTracer implements Tracer {
   }
 
   /**
-   * Eventhough TextMap is named like Map, it doesn't have a retrieve-by-key method
-   * Lookups will be case insensitive
+   * Eventhough TextMap is named like Map, it doesn't have a retrieve-by-key method Lookups will be
+   * case insensitive
    */
   static final class TextMapExtractorAdaptor implements Extractor<TextMap> {
     final Set<String> fields;

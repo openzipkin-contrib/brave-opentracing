@@ -33,8 +33,8 @@ import java.util.Map;
  * <p>Indicate {@link Tags#SPAN_KIND} before calling {@link #start()} to ensure RPC spans are
  * identified properly.
  *
- * <p>Brave does not support multiple parents so this has been implemented to
- * use the first parent defined.
+ * <p>Brave does not support multiple parents so this has been implemented to use the first parent
+ * defined.
  */
 public final class BraveSpanBuilder implements Tracer.SpanBuilder {
 
@@ -53,23 +53,14 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
     this.operationName = operationName;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override public Tracer.SpanBuilder asChildOf(SpanContext parent) {
     return addReference(References.CHILD_OF, parent);
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override public Tracer.SpanBuilder asChildOf(Span parent) {
     return asChildOf(parent.context());
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override public Tracer.SpanBuilder addReference(String type, SpanContext context) {
     if (parent != null) {
       return this;
@@ -80,53 +71,32 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
     return this;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override public Tracer.SpanBuilder withTag(String key, String value) {
     tags.put(key, value);
     return this;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override public Tracer.SpanBuilder withTag(String key, boolean value) {
     return withTag(key, Boolean.toString(value));
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override public Tracer.SpanBuilder withTag(String key, Number value) {
     return withTag(key, value.toString());
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override public Tracer.SpanBuilder withStartTimestamp(long microseconds) {
     this.timestamp = microseconds;
     return this;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override public Span start() {
     return startManual();
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override public Scope startActive() {
     return startActive(true);
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override public Scope startActive(boolean finishSpanOnClose) {
     if (!ignoreActiveSpan) {
       Scope parent = tracer.scopeManager().active();
@@ -137,17 +107,11 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
     return tracer.scopeManager().activate(startManual(), finishSpanOnClose);
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override public SpanBuilder ignoreActiveSpan() {
     ignoreActiveSpan = true;
     return this;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override public BraveSpan startManual() {
     boolean server = Tags.SPAN_KIND_SERVER.equals(tags.get(Tags.SPAN_KIND.getKey()));
 
