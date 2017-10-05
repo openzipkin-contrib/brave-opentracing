@@ -15,9 +15,8 @@ package brave.opentracing;
 
 import brave.propagation.SamplingFlags;
 import brave.propagation.TraceContext;
-import io.opentracing.ActiveSpan;
-import io.opentracing.BaseSpan;
 import io.opentracing.References;
+import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
@@ -64,7 +63,7 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
   /**
    * {@inheritDoc}
    */
-  @Override public Tracer.SpanBuilder asChildOf(BaseSpan<?> parent) {
+  @Override public Tracer.SpanBuilder asChildOf(Span parent) {
     return asChildOf(parent.context());
   }
 
@@ -111,24 +110,37 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
     return this;
   }
 
-  @Override
-  public Span start() {
+  /**
+   * {@inheritDoc}
+   */
+  @Override public Span start() {
     return startManual();
   }
 
-  @Override
-  public ActiveSpan startActive() {
-    if (!ignoreActiveSpan) {
-      ActiveSpan parent = tracer.activeSpan();
-      if (parent != null) {
-        asChildOf(parent);
-      }
-    }
-    return tracer.makeActive(startManual());
+  /**
+   * {@inheritDoc}
+   */
+  @Override public Scope startActive() {
+    return startActive(true);
   }
 
-  @Override
-  public SpanBuilder ignoreActiveSpan() {
+  /**
+   * {@inheritDoc}
+   */
+  @Override public Scope startActive(boolean finishSpanOnClose) {
+    if (!ignoreActiveSpan) {
+      Scope parent = tracer.scopeManager().active();
+      if (parent != null) {
+        asChildOf(parent.span());
+      }
+    }
+    return tracer.scopeManager().activate(startManual(), finishSpanOnClose);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override public SpanBuilder ignoreActiveSpan() {
     ignoreActiveSpan = true;
     return this;
   }

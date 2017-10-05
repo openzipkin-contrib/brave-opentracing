@@ -14,10 +14,9 @@
 package brave.opentracing;
 
 import brave.Tracer;
-import brave.Tracer.SpanInScope;
 import brave.Tracing;
-import io.opentracing.ActiveSpan;
-import io.opentracing.ActiveSpanSource;
+import io.opentracing.Scope;
+import io.opentracing.ScopeManager;
 import io.opentracing.Span;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -28,43 +27,54 @@ import java.util.concurrent.ConcurrentHashMap;
  * Note that it is important to use the OpenTracing API exclusively to activate spans. If you fail
  * to do this, querying for the active span using the OpenTracing API will throw an exception.
  */
-final class BraveActiveSpanSource implements ActiveSpanSource {
-  private final Map<Long, BraveActiveSpan> activeSpans = new ConcurrentHashMap<>();
+final class BraveScopeManager implements ScopeManager {
+  private final Map<Long, BraveScope> activeSpans = new ConcurrentHashMap<>();
   private final Tracer tracer;
 
-  BraveActiveSpanSource(Tracing brave4) {
+  BraveScopeManager(Tracing brave4) {
     tracer = brave4.tracer();
   }
 
-  @Override
-  public ActiveSpan activeSpan() {
+  /**
+   * {@inheritDoc}
+   */
+  @Override public Scope active() {
     brave.Span span = tracer.currentSpan();
     if (span == null) {
       return null;
     }
 
-    return getOrEstablishActiveSpan(span);
+    return getOrEstablishActiveSpan(span, false);
   }
 
-  @Override
-  public BraveActiveSpan makeActive(Span span) {
+  /**
+   * {@inheritDoc}
+   */
+  @Override public BraveScope activate(Span span) {
+    return activate(span, true);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override public BraveScope activate(Span span, boolean finishSpanOnClose) {
     if (span == null) return null;
     if (!(span instanceof BraveSpan)) throw new IllegalArgumentException(
         "Span must be an instance of brave.opentracing.BraveSpan, but was " + span.getClass());
 
     BraveSpan wrappedSpan = (BraveSpan) span;
     brave.Span rawSpan = wrappedSpan.unwrap();
-    return getOrEstablishActiveSpan(rawSpan);
+    return getOrEstablishActiveSpan(rawSpan, finishSpanOnClose);
   }
 
-  private BraveActiveSpan getOrEstablishActiveSpan(brave.Span span) {
+  private BraveScope getOrEstablishActiveSpan(brave.Span span, boolean finishSpanOnClose) {
     long spanId = span.context().spanId();
-    BraveActiveSpan braveActiveSpan = activeSpans.get(spanId);
-    if (braveActiveSpan == null) {
-      braveActiveSpan = new BraveActiveSpan(this, tracer.withSpanInScope(span), BraveSpan.wrap(span));
-      activeSpans.put(spanId, braveActiveSpan);
+    BraveScope braveScope = activeSpans.get(spanId);
+    if (braveScope == null) {
+      braveScope = new BraveScope(this, tracer.withSpanInScope(span), BraveSpan.wrap(span), finishSpanOnClose);
+      activeSpans.put(spanId, braveScope);
     }
-    return braveActiveSpan;
+    return braveScope;
   }
 
   void deregisterSpan(brave.Span span) {
