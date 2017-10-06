@@ -46,7 +46,7 @@ public final class BraveSpan implements Span {
   }
 
   /**
-   * Converts an existing {@linkplain Span} for use in OpenTracing apis
+   * Returns wrapped {@linkplain brave.Span}
    */
   public final brave.Span unwrap() {
     return delegate;

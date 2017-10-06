@@ -13,10 +13,6 @@
  */
 package brave.opentracing;
 
-import static java.util.concurrent.TimeUnit.DAYS;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.entry;
-
 import brave.Tracing;
 import io.opentracing.Scope;
 import io.opentracing.Span;
@@ -35,6 +31,10 @@ import org.junit.Test;
 import zipkin2.Call;
 import zipkin2.DependencyLink;
 import zipkin2.storage.InMemoryStorage;
+
+import static java.util.concurrent.TimeUnit.DAYS;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.entry;
 
 public class BraveSpanTest {
   InMemoryStorage zipkin = InMemoryStorage.newBuilder().build();
@@ -65,7 +65,7 @@ public class BraveSpanTest {
 
   @Test public void autoCloseOnTryFinally_doesntReportTwice() {
     try (Scope scope = tracer.buildSpan("foo").startActive()) {
-      scope.close(); // user closes and also auto-close closes
+      scope.span().finish(); // user closes and also auto-close closes
     }
 
     assertThat(zipkin.spanStore().getTraces())

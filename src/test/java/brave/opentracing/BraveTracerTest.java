@@ -13,10 +13,6 @@
  */
 package brave.opentracing;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.data.MapEntry.entry;
-import static org.junit.Assert.assertEquals;
-
 import brave.Span;
 import brave.Tracer.SpanInScope;
 import brave.Tracing;
@@ -33,6 +29,10 @@ import java.util.List;
 import java.util.Map;
 import org.junit.Test;
 import zipkin2.Annotation;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.data.MapEntry.entry;
+import static org.junit.Assert.assertEquals;
 
 /**
  * This shows how one might make an OpenTracing adapter for Brave, and how to navigate in and out
