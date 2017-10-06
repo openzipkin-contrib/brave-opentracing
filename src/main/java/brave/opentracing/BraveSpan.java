@@ -16,6 +16,7 @@ package brave.opentracing;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
 import io.opentracing.tag.Tags;
+
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
