@@ -18,7 +18,6 @@ import brave.Tracing;
 import io.opentracing.Scope;
 import io.opentracing.ScopeManager;
 import io.opentracing.Span;
-
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 

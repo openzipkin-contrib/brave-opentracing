@@ -15,7 +15,6 @@ package brave.opentracing;
 
 import brave.propagation.TraceContext;
 import io.opentracing.SpanContext;
-
 import java.util.Collections;
 import java.util.Map;
 

@@ -21,17 +21,16 @@ import io.opentracing.propagation.Format;
 import io.opentracing.propagation.TextMapExtractAdapter;
 import io.opentracing.propagation.TextMapInjectAdapter;
 import io.opentracing.tag.Tags;
-import org.junit.Before;
-import org.junit.Test;
-import zipkin2.Call;
-import zipkin2.DependencyLink;
-import zipkin2.storage.InMemoryStorage;
-
 import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.junit.Before;
+import org.junit.Test;
+import zipkin2.Call;
+import zipkin2.DependencyLink;
+import zipkin2.storage.InMemoryStorage;
 
 import static java.util.concurrent.TimeUnit.DAYS;
 import static org.assertj.core.api.Assertions.assertThat;
