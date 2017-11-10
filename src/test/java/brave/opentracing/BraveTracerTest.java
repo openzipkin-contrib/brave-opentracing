@@ -35,8 +35,8 @@ import static org.assertj.core.data.MapEntry.entry;
 import static org.junit.Assert.assertEquals;
 
 /**
- * This shows how one might make an OpenTracing adapter for Brave, and how to navigate in and out
- * of the core concepts.
+ * This shows how one might make an OpenTracing adapter for Brave, and how to navigate in and out of
+ * the core concepts.
  */
 public class BraveTracerTest {
 
@@ -218,8 +218,10 @@ public class BraveTracerTest {
       }
     }
 
-    assertEquals("SpanA should have been active again after closing B", idOfSpanA, shouldBeIdOfSpanA);
-    assertEquals("SpanB should have been active prior to its closure", idOfSpanB, shouldBeIdOfSpanB);
+    assertEquals("SpanA should have been active again after closing B", idOfSpanA,
+        shouldBeIdOfSpanA);
+    assertEquals("SpanB should have been active prior to its closure", idOfSpanB,
+        shouldBeIdOfSpanB);
     assertEquals("SpanB's parent should be SpanA", idOfSpanA, parentIdOfSpanB);
     assertEquals("SpanC's parent should be SpanA", idOfSpanA, parentIdOfSpanC);
   }
@@ -260,8 +262,10 @@ public class BraveTracerTest {
       spanA.finish();
     }
 
-    assertEquals("SpanA should have been active again after closing B", idOfSpanA, shouldBeIdOfSpanA);
-    assertEquals("SpanB should have been active prior to its closure", idOfSpanB, shouldBeIdOfSpanB);
+    assertEquals("SpanA should have been active again after closing B", idOfSpanA,
+        shouldBeIdOfSpanA);
+    assertEquals("SpanB should have been active prior to its closure", idOfSpanB,
+        shouldBeIdOfSpanB);
     assertEquals("SpanB's parent should be SpanA", idOfSpanA, parentIdOfSpanB);
     assertEquals("SpanC's parent should be SpanA", idOfSpanA, parentIdOfSpanC);
   }

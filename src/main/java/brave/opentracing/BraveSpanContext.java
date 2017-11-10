@@ -20,7 +20,7 @@ import java.util.Map;
 
 /**
  * Holds the {@linkplain TraceContext} used by the underlying {@linkplain brave.Tracer}. An {@link
- * TraceContext#sampled() unsampled} context results in a {@link opentracing...NoopSpan}.
+ * TraceContext#sampled() unsampled} context results in a {@link brave.NoopSpan}.
  *
  * <p>This type also includes hooks to integrate with the underlying {@linkplain brave.Tracer}. Ex
  * you can access the underlying trace context with {@link #unwrap}

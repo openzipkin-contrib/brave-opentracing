@@ -56,8 +56,6 @@ public final class BraveScope implements Scope {
   }
 
   @Override public String toString() {
-    return "BraveActiveSpan{" + "scope=" + scope +
-        ", wrapped=" + wrapped +
-        '}';
+    return "BraveActiveSpan{scope=" + scope + ", wrapped=" + wrapped + '}';
   }
 }
