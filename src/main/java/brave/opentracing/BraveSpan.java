@@ -18,14 +18,25 @@ import io.opentracing.SpanContext;
 import io.opentracing.tag.Tags;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Map.Entry;
 
 /**
  * Holds the {@linkplain brave.Span} used by the underlying {@linkplain brave.Tracer}.\
  *
- * <p>This type also includes hooks to integrate with the underlying {@linkplain brave.Tracer}.
- * Ex you can access the underlying span with {@link #unwrap}
+ * <p>This type also includes hooks to integrate with the underlying {@linkplain brave.Tracer}. Ex
+ * you can access the underlying span with {@link #unwrap}
  */
-public final class BraveSpan extends BraveBaseSpan<Span> implements Span {
+public final class BraveSpan implements Span {
+
+  private final brave.Span delegate;
+  private final SpanContext context;
+
+  BraveSpan(brave.Span delegate) {
+    if (delegate == null) throw new NullPointerException("wrapped span == null");
+    this.delegate = delegate;
+    this.context = BraveSpanContext.wrap(delegate.context());
+  }
+
   /**
    * Converts an existing {@linkplain brave.Span} for use in OpenTracing apis
    */
@@ -34,7 +45,111 @@ public final class BraveSpan extends BraveBaseSpan<Span> implements Span {
     return new BraveSpan(span);
   }
 
-  private BraveSpan(brave.Span delegate) {
-    super(delegate);
+  /**
+   * Returns wrapped {@linkplain brave.Span}
+   */
+  public final brave.Span unwrap() {
+    return delegate;
+  }
+
+  @Override public SpanContext context() {
+    return context;
+  }
+
+  @Override public Span setTag(String key, String value) {
+    delegate.tag(key, value);
+
+    if (Tags.SPAN_KIND.getKey().equals(key) && Tags.SPAN_KIND_CLIENT.equals(value)) {
+      delegate.kind(brave.Span.Kind.CLIENT);
+    } else if (Tags.SPAN_KIND.getKey().equals(key) && Tags.SPAN_KIND_SERVER.equals(value)) {
+      delegate.kind(brave.Span.Kind.SERVER);
+    }
+    return this;
+  }
+
+  @Override public Span setTag(String key, boolean value) {
+    return setTag(key, Boolean.toString(value));
+  }
+
+  @Override public Span setTag(String key, Number value) {
+    return setTag(key, value.toString());
+  }
+
+  @Override public Span log(Map<String, ?> fields) {
+    if (fields.isEmpty()) return this;
+    // in real life, do like zipkin-go-opentracing: "key1=value1 key2=value2"
+    return log(toAnnotation(fields));
+  }
+
+  @Override public Span log(long timestampMicroseconds, Map<String, ?> fields) {
+    if (fields.isEmpty()) return this;
+    // in real life, do like zipkin-go-opentracing: "key1=value1 key2=value2"
+    return log(timestampMicroseconds, toAnnotation(fields));
+  }
+
+  /**
+   * Converts a map to a string of form: "key1=value1 key2=value2"
+   */
+  static String toAnnotation(Map<String, ?> fields) {
+    // special-case the "event" field which is similar to the semantics of a zipkin annotation
+    Object event = fields.get("event");
+    if (event != null && fields.size() == 1) return event.toString();
+
+    return joinOnEqualsSpace(fields);
+  }
+
+  static String joinOnEqualsSpace(Map<String, ?> fields) {
+    if (fields.isEmpty()) return "";
+
+    StringBuilder result = new StringBuilder();
+    for (Iterator<? extends Entry<String, ?>> i = fields.entrySet().iterator(); i.hasNext(); ) {
+      Map.Entry<String, ?> next = i.next();
+      result.append(next.getKey()).append('=').append(next.getValue());
+      if (i.hasNext()) result.append(' ');
+    }
+    return result.toString();
+  }
+
+  @Override public Span log(String event) {
+    delegate.annotate(event);
+    return this;
+  }
+
+  @Override public Span log(long timestampMicroseconds, String event) {
+    delegate.annotate(timestampMicroseconds, event);
+    return this;
+  }
+
+  /**
+   * This is a NOOP as neither <a href="https://github.com/openzipkin/b3-propagation">B3</a> nor
+   * Brave include baggage support.
+   */
+  // OpenTracing could one day define a way to plug-in arbitrary baggage handling similar to how
+  // it has feature-specific apis like active-span
+  @Override public Span setBaggageItem(String key, String value) {
+    return this;
+  }
+
+  /**
+   * Returns null as neither <a href="https://github.com/openzipkin/b3-propagation">B3</a> nor Brave
+   * include baggage support.
+   */
+  // OpenTracing could one day define a way to plug-in arbitrary baggage handling similar to how
+  // it has feature-specific apis like active-span
+  @Override public String getBaggageItem(String key) {
+    return null;
+  }
+
+  @Override public Span setOperationName(String operationName) {
+    delegate.name(operationName);
+    return this;
+  }
+
+  @Override public void finish() {
+    delegate.finish();
+  }
+
+  @Override public void finish(long finishMicros) {
+    delegate.finish(finishMicros);
   }
 }

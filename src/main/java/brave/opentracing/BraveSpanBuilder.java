@@ -15,15 +15,13 @@ package brave.opentracing;
 
 import brave.propagation.SamplingFlags;
 import brave.propagation.TraceContext;
-import io.opentracing.ActiveSpan;
-import io.opentracing.BaseSpan;
 import io.opentracing.References;
+import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
 import io.opentracing.Tracer.SpanBuilder;
 import io.opentracing.tag.Tags;
-
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -34,8 +32,8 @@ import java.util.Map;
  * <p>Indicate {@link Tags#SPAN_KIND} before calling {@link #start()} to ensure RPC spans are
  * identified properly.
  *
- * <p>Brave does not support multiple parents so this has been implemented to
- * use the first parent defined.
+ * <p>Brave does not support multiple parents so this has been implemented to use the first parent
+ * defined.
  */
 public final class BraveSpanBuilder implements Tracer.SpanBuilder {
 
@@ -54,23 +52,14 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
     this.operationName = operationName;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override public Tracer.SpanBuilder asChildOf(SpanContext parent) {
     return addReference(References.CHILD_OF, parent);
   }
 
-  /**
-   * {@inheritDoc}
-   */
-  @Override public Tracer.SpanBuilder asChildOf(BaseSpan<?> parent) {
+  @Override public Tracer.SpanBuilder asChildOf(Span parent) {
     return asChildOf(parent.context());
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override public Tracer.SpanBuilder addReference(String type, SpanContext context) {
     if (parent != null) {
       return this;
@@ -81,61 +70,47 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
     return this;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override public Tracer.SpanBuilder withTag(String key, String value) {
     tags.put(key, value);
     return this;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override public Tracer.SpanBuilder withTag(String key, boolean value) {
     return withTag(key, Boolean.toString(value));
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override public Tracer.SpanBuilder withTag(String key, Number value) {
     return withTag(key, value.toString());
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override public Tracer.SpanBuilder withStartTimestamp(long microseconds) {
     this.timestamp = microseconds;
     return this;
   }
 
-  @Override
-  public Span start() {
+  @Override public Span start() {
     return startManual();
   }
 
-  @Override
-  public ActiveSpan startActive() {
-    if (!ignoreActiveSpan) {
-      ActiveSpan parent = tracer.activeSpan();
-      if (parent != null) {
-        asChildOf(parent);
-      }
-    }
-    return tracer.makeActive(startManual());
+  @Override public Scope startActive() {
+    return startActive(true);
   }
 
-  @Override
-  public SpanBuilder ignoreActiveSpan() {
+  @Override public Scope startActive(boolean finishSpanOnClose) {
+    if (!ignoreActiveSpan) {
+      Scope parent = tracer.scopeManager().active();
+      if (parent != null) {
+        asChildOf(parent.span());
+      }
+    }
+    return tracer.scopeManager().activate(startManual(), finishSpanOnClose);
+  }
+
+  @Override public SpanBuilder ignoreActiveSpan() {
     ignoreActiveSpan = true;
     return this;
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override public BraveSpan startManual() {
     boolean server = Tags.SPAN_KIND_SERVER.equals(tags.get(Tags.SPAN_KIND.getKey()));
 

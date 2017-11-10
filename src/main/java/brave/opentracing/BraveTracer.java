@@ -19,14 +19,11 @@ import brave.propagation.TraceContext;
 import brave.propagation.TraceContext.Extractor;
 import brave.propagation.TraceContext.Injector;
 import brave.propagation.TraceContextOrSamplingFlags;
-import io.opentracing.ActiveSpan;
-import io.opentracing.ActiveSpanSource;
-import io.opentracing.Span;
+import io.opentracing.ScopeManager;
 import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
 import io.opentracing.propagation.Format;
 import io.opentracing.propagation.TextMap;
-
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -58,32 +55,31 @@ import java.util.Set;
  */
 public final class BraveTracer implements Tracer {
   private final brave.Tracer brave4;
-  private final ActiveSpanSource activeSpanSource;
+  private final ScopeManager scopeManager;
 
   /**
-   * Returns an implementation of {@link Tracer} which delegates to the
-   * provided Brave {@link Tracing} component and uses an instance of
-   * {@link BraveActiveSpanSource} for its {@link ActiveSpanSource}.
+   * Returns an implementation of {@link Tracer} which delegates to the provided Brave {@link
+   * Tracing} component and uses an instance of {@link BraveScopeManager} for its {@link
+   * ScopeManager}.
    */
   public static BraveTracer create(Tracing brave4) {
     return newBuilder(brave4)
-            .activeSpanSource(new BraveActiveSpanSource(brave4))
-            .build();
+        .activeScopeManager(new BraveScopeManager(brave4))
+        .build();
   }
 
   /**
-   * Returns a {@link Builder} configured with the provided Brave
-   * {@link Tracing}
-   * provided Brave {@link Tracing} component and uses an instance of
-   * {@link BraveActiveSpanSource} for its {@link ActiveSpanSource}.
+   * Returns a {@link Builder} configured with the provided Brave {@link Tracing} provided Brave
+   * {@link Tracing} component and uses an instance of {@link BraveScopeManager} for its {@link
+   * ScopeManager}.
    */
   public static Builder newBuilder(Tracing brave4) {
-    return new Builder(brave4).activeSpanSource(new BraveActiveSpanSource(brave4));
+    return new Builder(brave4).activeScopeManager(new BraveScopeManager(brave4));
   }
 
   public static final class Builder {
     Tracing brave4;
-    ActiveSpanSource activeSpanSource;
+    ScopeManager scopeManager;
 
     Map<Format<TextMap>, Propagation<String>> formatToPropagation = new LinkedHashMap<>();
 
@@ -101,17 +97,17 @@ public final class BraveTracer implements Tracer {
      * may not tell Brave about the active span. In these scenarios, you would need to use the
      * OpenTracing APIs exclusively, as the Brave APIs would not function correctly, if at all.
      */
-    public Builder activeSpanSource(ActiveSpanSource activeSpanSource) {
-      if (activeSpanSource == null) throw new NullPointerException("activeSpanSource == null");
-      this.activeSpanSource = activeSpanSource;
+    public Builder activeScopeManager(ScopeManager scopeManager) {
+      if (scopeManager == null) throw new NullPointerException("scopeManager == null");
+      this.scopeManager = scopeManager;
       return this;
     }
 
     /**
-     * By default, {@link Format.Builtin#HTTP_HEADERS} and {@link Format.Builtin#TEXT_MAP} use
-     * the propagation mechanism supplied by {@link Tracing#propagation()}, which defaults to
-     * {@link Propagation#B3_STRING B3 Propagation}. You can override or add different formats using
-     * this method.
+     * By default, {@link Format.Builtin#HTTP_HEADERS} and {@link Format.Builtin#TEXT_MAP} use the
+     * propagation mechanism supplied by {@link Tracing#propagation()}, which defaults to {@link
+     * Propagation#B3_STRING B3 Propagation}. You can override or add different formats using this
+     * method.
      *
      * <p>For example, instead of using implicit format keys in your code, you might want to
      * explicitly declare you are using B3. To do so, you'd do setup the tracer like this:
@@ -141,26 +137,17 @@ public final class BraveTracer implements Tracer {
 
   BraveTracer(Builder b) {
     brave4 = b.brave4.tracer();
-    activeSpanSource = b.activeSpanSource;
+    scopeManager = b.scopeManager;
     for (Map.Entry<Format<TextMap>, Propagation<String>> entry : b.formatToPropagation.entrySet()) {
       formatToInjector.put(entry.getKey(), entry.getValue().injector(TextMap::put));
       formatToExtractor.put(entry.getKey(), new TextMapExtractorAdaptor(entry.getValue()));
     }
   }
 
-  @Override
-  public ActiveSpan activeSpan() {
-    return activeSpanSource.activeSpan();
+  @Override public ScopeManager scopeManager() {
+    return scopeManager;
   }
 
-  @Override
-  public ActiveSpan makeActive(Span span) {
-    return activeSpanSource.makeActive(span);
-  }
-
-  /**
-   * {@inheritDoc}
-   */
   @Override public SpanBuilder buildSpan(String operationName) {
     return new BraveSpanBuilder(this, brave4, operationName);
   }
@@ -194,8 +181,8 @@ public final class BraveTracer implements Tracer {
   }
 
   /**
-   * Eventhough TextMap is named like Map, it doesn't have a retrieve-by-key method
-   * Lookups will be case insensitive
+   * Eventhough TextMap is named like Map, it doesn't have a retrieve-by-key method Lookups will be
+   * case insensitive
    */
   static final class TextMapExtractorAdaptor implements Extractor<TextMap> {
     final Set<String> fields;

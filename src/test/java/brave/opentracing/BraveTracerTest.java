@@ -18,18 +18,17 @@ import brave.Tracer.SpanInScope;
 import brave.Tracing;
 import brave.propagation.Propagation;
 import brave.propagation.TraceContext;
-import io.opentracing.ActiveSpan;
+import io.opentracing.Scope;
 import io.opentracing.propagation.Format;
 import io.opentracing.propagation.TextMap;
 import io.opentracing.propagation.TextMapExtractAdapter;
 import io.opentracing.propagation.TextMapInjectAdapter;
-import org.junit.Test;
-import zipkin2.Annotation;
-
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.junit.Test;
+import zipkin2.Annotation;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.data.MapEntry.entry;
@@ -206,16 +205,16 @@ public class BraveTracerTest {
     Long parentIdOfSpanB;
     Long parentIdOfSpanC;
 
-    try (ActiveSpan spanA = opentracing.buildSpan("spanA").startActive()) {
-      idOfSpanA = getTraceContext(spanA).spanId();
-      try (ActiveSpan spanB = opentracing.buildSpan("spanB").startActive()) {
-        idOfSpanB = getTraceContext(spanB).spanId();
-        parentIdOfSpanB = getTraceContext(spanB).parentId();
-        shouldBeIdOfSpanB = getTraceContext(opentracing.activeSpan()).spanId();
+    try (Scope scopeA = opentracing.buildSpan("spanA").startActive()) {
+      idOfSpanA = getTraceContext(scopeA).spanId();
+      try (Scope scopeB = opentracing.buildSpan("spanB").startActive()) {
+        idOfSpanB = getTraceContext(scopeB).spanId();
+        parentIdOfSpanB = getTraceContext(scopeB).parentId();
+        shouldBeIdOfSpanB = getTraceContext(opentracing.scopeManager().active()).spanId();
       }
-      shouldBeIdOfSpanA = getTraceContext(opentracing.activeSpan()).spanId();
-      try (ActiveSpan spanC = opentracing.buildSpan("spanC").startActive()) {
-        parentIdOfSpanC = getTraceContext(spanC).parentId();
+      shouldBeIdOfSpanA = getTraceContext(opentracing.scopeManager().active()).spanId();
+      try (Scope scopeC = opentracing.buildSpan("spanC").startActive()) {
+        parentIdOfSpanC = getTraceContext(scopeC).parentId();
       }
     }
 
@@ -267,7 +266,7 @@ public class BraveTracerTest {
     assertEquals("SpanC's parent should be SpanA", idOfSpanA, parentIdOfSpanC);
   }
 
-  private static TraceContext getTraceContext(ActiveSpan span) {
-    return ((BraveSpanContext) span.context()).unwrap();
+  private static TraceContext getTraceContext(Scope scope) {
+    return ((BraveSpanContext) scope.span().context()).unwrap();
   }
 }
