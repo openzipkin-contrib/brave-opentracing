@@ -45,7 +45,7 @@ final class BraveScopeManager implements ScopeManager {
   }
 
   @Override public BraveScope activate(Span span) {
-    return activate(span, true);
+    return activate(span, true); // TODO: revisit this default of finish on close
   }
 
   @Override public BraveScope activate(Span span, boolean finishSpanOnClose) {
