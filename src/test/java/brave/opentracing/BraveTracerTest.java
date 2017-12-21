@@ -125,6 +125,16 @@ public class BraveTracerTest {
             .sampled(true).build());
   }
 
+  @Test public void extractTraceContextReturnsNull() throws Exception {
+    Map<String, String> map = new LinkedHashMap<>();
+    map.put("other", "1");
+
+    BraveSpanContext openTracingContext = opentracing.extract(Format.Builtin.HTTP_HEADERS,
+            new TextMapExtractAdapter(map));
+
+    assertThat(openTracingContext).isNull();
+  }
+
   @Test public void injectTraceContext() throws Exception {
     TraceContext context = TraceContext.newBuilder()
         .traceId(1L)

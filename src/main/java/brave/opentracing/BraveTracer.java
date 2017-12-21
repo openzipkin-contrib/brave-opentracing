@@ -165,19 +165,16 @@ public final class BraveTracer implements Tracer {
   }
 
   /**
-   * Extracts the underlying context using B3 encoding by default. A new trace context is
-   * provisioned when there is no encoded context in the carrier, or upon error extracting it.
+   * Extracts the underlying context using B3 encoding by default. Null is returned when there is no
+   * encoded context in the carrier, or upon error extracting it.
    */
-  @Override public <C> SpanContext extract(Format<C> format, C carrier) {
+  @Override public <C> BraveSpanContext extract(Format<C> format, C carrier) {
     Extractor<TextMap> extractor = formatToExtractor.get(format);
     if (extractor == null) {
       throw new UnsupportedOperationException(format + " not in " + formatToExtractor.keySet());
     }
     TraceContextOrSamplingFlags result = extractor.extract((TextMap) carrier);
-    TraceContext context = result.context() != null
-        ? result.context()
-        : brave4.newTrace(result.samplingFlags()).context();
-    return BraveSpanContext.wrap(context);
+    return result.context() != null ? BraveSpanContext.wrap(result.context()) : null;
   }
 
   /**
