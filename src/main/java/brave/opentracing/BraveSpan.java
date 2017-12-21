@@ -19,6 +19,7 @@ import io.opentracing.tag.Tags;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
+import zipkin2.Endpoint;
 
 /**
  * Holds the {@linkplain brave.Span} used by the underlying {@linkplain brave.Tracer}.\
@@ -27,22 +28,24 @@ import java.util.Map.Entry;
  * you can access the underlying span with {@link #unwrap}
  */
 public final class BraveSpan implements Span {
+  static final Endpoint EMPTY_ENDPOINT = Endpoint.newBuilder().build();
 
   private final brave.Span delegate;
   private final SpanContext context;
+  private final Endpoint.Builder remoteEndpointBuilder;
 
-  BraveSpan(brave.Span delegate) {
-    if (delegate == null) throw new NullPointerException("wrapped span == null");
+  BraveSpan(brave.Span delegate, Endpoint remoteEndpoint) {
     this.delegate = delegate;
+    this.remoteEndpointBuilder = remoteEndpoint.toBuilder(); // so that the builder can be reused
     this.context = BraveSpanContext.wrap(delegate.context());
   }
 
   /**
    * Converts an existing {@linkplain brave.Span} for use in OpenTracing apis
    */
-  static BraveSpan wrap(brave.Span span) {
+  static BraveSpan wrap(brave.Span span, Endpoint remoteEndpoint) {
     if (span == null) throw new NullPointerException("span == null");
-    return new BraveSpan(span);
+    return new BraveSpan(span, remoteEndpoint);
   }
 
   /**
@@ -57,6 +60,8 @@ public final class BraveSpan implements Span {
   }
 
   @Override public Span setTag(String key, String value) {
+    if (trySetPeer(remoteEndpointBuilder, key, value)) return this;
+
     delegate.tag(key, value);
 
     if (Tags.SPAN_KIND.getKey().equals(key) && Tags.SPAN_KIND_CLIENT.equals(value)) {
@@ -72,6 +77,7 @@ public final class BraveSpan implements Span {
   }
 
   @Override public Span setTag(String key, Number value) {
+    if (trySetPeer(remoteEndpointBuilder, key, value)) return this;
     return setTag(key, value.toString());
   }
 
@@ -146,10 +152,47 @@ public final class BraveSpan implements Span {
   }
 
   @Override public void finish() {
+    trySetRemoteEndpoint();
     delegate.finish();
   }
 
   @Override public void finish(long finishMicros) {
+    trySetRemoteEndpoint();
     delegate.finish(finishMicros);
+  }
+
+  void trySetRemoteEndpoint() {
+    Endpoint remoteEndpoint = remoteEndpointBuilder.build();
+    if (!remoteEndpoint.equals(EMPTY_ENDPOINT)) {
+      delegate.remoteEndpoint(remoteEndpoint);
+    }
+  }
+
+  static boolean trySetPeer(Endpoint.Builder remoteEndpoint, String key, String value) {
+    if (Tags.PEER_SERVICE.getKey().equals(key)) {
+      remoteEndpoint.serviceName(value);
+    } else if (Tags.PEER_HOST_IPV4.getKey().equals(key) ||
+        Tags.PEER_HOST_IPV6.getKey().equals(key)) {
+      remoteEndpoint.ip(value);
+    } else {
+      return false;
+    }
+    return true;
+  }
+
+  static boolean trySetPeer(Endpoint.Builder remoteEndpoint, String key, Number value) {
+    if (Tags.PEER_HOST_IPV4.getKey().equals(key)) {
+      int ipv4 = value.intValue();
+      remoteEndpoint.ip(new StringBuilder()
+          .append(ipv4 >> 24 & 0xff).append('.')
+          .append(ipv4 >> 16 & 0xff).append('.')
+          .append(ipv4 >> 8 & 0xff).append('.')
+          .append(ipv4 & 0xff).toString());
+    } else if (Tags.PEER_PORT.getKey().equals(key)) {
+      remoteEndpoint.port(value.intValue());
+    } else {
+      return false;
+    }
+    return true;
   }
 }
