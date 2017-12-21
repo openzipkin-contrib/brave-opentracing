@@ -35,6 +35,7 @@ import org.junit.runner.RunWith;
 import zipkin2.Endpoint;
 import zipkin2.Span.Kind;
 
+import static io.opentracing.tag.Tags.SAMPLING_PRIORITY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
 
@@ -185,11 +186,34 @@ public class BraveSpanTest {
     assertThat(spans.get(2).localServiceName()).isEqualTo("tracer");
   }
 
-  @Test public void testNotSampled_spanBuilder_newTrace() {
-    tracer.buildSpan("foo")
-        .withTag(Tags.SAMPLING_PRIORITY.getKey(), 0)
-        .startManual().finish();
+  @Test public void samplingPriority_unsampledWhenAtStart() {
+    BraveSpan span = tracer.buildSpan("foo")
+        .withTag(SAMPLING_PRIORITY.getKey(), 0)
+        .startManual();
 
+    assertThat(span.context().unwrap().sampled())
+        .isFalse();
+
+    span.finish();
+    assertThat(spans).isEmpty();
+  }
+
+  @Test public void samplingPriority_abandonsAndUnsampledAfterStart() {
+    BraveSpan span = tracer.buildSpan("foo")
+        .startManual();
+
+    assertThat(span.context().unwrap().sampled())
+        .isTrue();
+
+    // this is a known race-condition as sampling decision could have been propagated downstream!
+    SAMPLING_PRIORITY.set(span, 0);
+    assertThat(span.context().unwrap().sampled())
+        .isFalse();
+
+    assertThat(span.delegate)
+        .isInstanceOf(AbandonedSpan.class);
+
+    span.finish();
     assertThat(spans).isEmpty();
   }
 
