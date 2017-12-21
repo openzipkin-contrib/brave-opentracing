@@ -316,6 +316,25 @@ public class BraveTracerTest {
     }
   }
 
+  @Test public void ignoresErrorFalseTag_beforeStart() {
+    opentracing.buildSpan("encode")
+        .withTag("error", false)
+        .startManual().finish();
+
+    assertThat(spans.get(0).tags())
+        .isEmpty();
+  }
+
+  @Test public void ignoresErrorFalseTag_afterStart() {
+    opentracing.buildSpan("encode")
+        .startManual()
+        .setTag("error", false)
+        .finish();
+
+    assertThat(spans.get(0).tags())
+        .isEmpty();
+  }
+
   private static TraceContext getTraceContext(Scope scope) {
     return ((BraveSpanContext) scope.span().context()).unwrap();
   }
