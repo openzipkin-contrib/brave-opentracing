@@ -148,7 +148,7 @@ public final class BraveTracer implements Tracer {
     return scopeManager;
   }
 
-  @Override public SpanBuilder buildSpan(String operationName) {
+  @Override public BraveSpanBuilder buildSpan(String operationName) {
     return new BraveSpanBuilder(this, brave4, operationName);
   }
 
