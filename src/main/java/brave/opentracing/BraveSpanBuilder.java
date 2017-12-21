@@ -25,6 +25,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import zipkin2.Endpoint;
 
+import static brave.opentracing.BraveSpan.trySetKind;
 import static brave.opentracing.BraveSpan.trySetPeer;
 
 /**
@@ -158,21 +159,17 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
 
     if (operationName != null) span.name(operationName);
     for (Map.Entry<String, String> tag : tags.entrySet()) {
-      span.tag(tag.getKey(), tag.getValue());
+      String key = tag.getKey(), value = tag.getValue();
+      if (trySetKind(span, key, value)) continue;
+      span.tag(key, value);
+    }
 
-      if (Tags.SPAN_KIND.getKey().equals(tag.getKey()) && Tags.SPAN_KIND_CLIENT.equals(
-          tag.getValue())) {
-        span.kind(brave.Span.Kind.CLIENT);
-      } else if (server) {
-        span.kind(brave.Span.Kind.SERVER);
-      }
-    }
-    brave.Span result;
     if (timestamp != 0) {
-      result = span.start(timestamp);
+      span.start(timestamp);
     } else {
-      result = span.start();
+      span.start();
     }
-    return BraveSpan.wrap(result, remoteEndpoint.build());
+
+    return new BraveSpan(span, remoteEndpoint.build());
   }
 }
