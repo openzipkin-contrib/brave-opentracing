@@ -270,6 +270,42 @@ public class BraveTracerTest {
     assertEquals("SpanC's parent should be SpanA", idOfSpanA, parentIdOfSpanC);
   }
 
+  @Test public void implicitParentFromSpanManager_startActive() {
+    try (Scope scopeA = opentracing.buildSpan("spanA").startActive()) {
+      try (Scope scopeB = opentracing.buildSpan("spanA").startActive()) {
+        assertThat(getTraceContext(scopeB).parentId())
+            .isEqualTo(getTraceContext(scopeA).spanId());
+      }
+    }
+  }
+
+  @Test public void implicitParentFromSpanManager_startManual() {
+    try (Scope scopeA = opentracing.buildSpan("spanA").startActive()) {
+      BraveSpan span = opentracing.buildSpan("spanB").startManual();
+      assertThat(span.unwrap().context().parentId())
+          .isEqualTo(getTraceContext(scopeA).spanId());
+    }
+  }
+
+  @Test public void implicitParentFromSpanManager_startActive_ignoreActiveSpan() {
+    try (Scope scopeA = opentracing.buildSpan("spanA").startActive()) {
+      try (Scope scopeB = opentracing.buildSpan("spanA")
+          .ignoreActiveSpan().startActive()) {
+        assertThat(getTraceContext(scopeB).parentId())
+            .isNull(); // new trace
+      }
+    }
+  }
+
+  @Test public void implicitParentFromSpanManager_startManual_ignoreActiveSpan() {
+    try (Scope scopeA = opentracing.buildSpan("spanA").startActive()) {
+      BraveSpan span = opentracing.buildSpan("spanB")
+          .ignoreActiveSpan().startManual();
+      assertThat(span.unwrap().context().parentId())
+          .isNull(); // new trace
+    }
+  }
+
   private static TraceContext getTraceContext(Scope scope) {
     return ((BraveSpanContext) scope.span().context()).unwrap();
   }
