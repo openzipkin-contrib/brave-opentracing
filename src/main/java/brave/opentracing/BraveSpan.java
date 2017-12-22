@@ -73,6 +73,7 @@ public final class BraveSpan implements Span {
   }
 
   @Override public Span setTag(String key, boolean value) {
+    if (Tags.ERROR.getKey().equals(key) && !value) return this;
     return setTag(key, Boolean.toString(value));
   }
 

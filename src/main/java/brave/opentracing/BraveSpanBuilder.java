@@ -80,6 +80,7 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
   }
 
   @Override public BraveSpanBuilder withTag(String key, boolean value) {
+    if (Tags.ERROR.getKey().equals(key) && !value) return this;
     return withTag(key, Boolean.toString(value));
   }
 
