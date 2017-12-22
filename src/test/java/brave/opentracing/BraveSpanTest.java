@@ -28,6 +28,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.Test;
+import zipkin2.Endpoint;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
@@ -140,5 +141,38 @@ public class BraveSpanTest {
         .startManual().finish();
 
     assertThat(spans).isEmpty();
+  }
+
+  @Test public void setPeerTags_beforeStart() {
+    tracer.buildSpan("encode")
+        .withTag(Tags.PEER_SERVICE.getKey(), "jupiter")
+        .withTag(Tags.PEER_HOST_IPV4.getKey(), "1.2.3.4")
+        .withTag(Tags.PEER_HOST_IPV6.getKey(), "2001:db8::c001")
+        .withTag(Tags.PEER_PORT.getKey(), 8080)
+        .startManual().finish();
+
+    assertThat(spans.get(0).remoteEndpoint())
+        .isEqualTo(Endpoint.newBuilder()
+            .serviceName("jupiter")
+            .ip("1.2.3.4")
+            .ip("2001:db8::c001")
+            .port(8080).build());
+  }
+
+  @Test public void setPeerTags_afterStart() {
+    tracer.buildSpan("encode")
+        .startManual()
+        .setTag(Tags.PEER_SERVICE.getKey(), "jupiter")
+        .setTag(Tags.PEER_HOST_IPV4.getKey(), "1.2.3.4")
+        .setTag(Tags.PEER_HOST_IPV6.getKey(), "2001:db8::c001")
+        .setTag(Tags.PEER_PORT.getKey(), 8080)
+        .finish();
+
+    assertThat(spans.get(0).remoteEndpoint())
+        .isEqualTo(Endpoint.newBuilder()
+            .serviceName("jupiter")
+            .ip("1.2.3.4")
+            .ip("2001:db8::c001")
+            .port(8080).build());
   }
 }

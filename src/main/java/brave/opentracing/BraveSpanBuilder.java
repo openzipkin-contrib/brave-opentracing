@@ -23,6 +23,9 @@ import io.opentracing.Tracer;
 import io.opentracing.tag.Tags;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import zipkin2.Endpoint;
+
+import static brave.opentracing.BraveSpan.trySetPeer;
 
 /**
  * Uses by the underlying {@linkplain brave.Tracer} to create a {@linkplain BraveSpan} wrapped
@@ -39,6 +42,7 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
   private final Tracer tracer;
   private final brave.Tracer braveTracer;
   private final Map<String, String> tags = new LinkedHashMap<>();
+  private final Endpoint.Builder remoteEndpoint = Endpoint.newBuilder();
 
   private String operationName;
   private long timestamp;
@@ -70,6 +74,7 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
   }
 
   @Override public BraveSpanBuilder withTag(String key, String value) {
+    if (trySetPeer(remoteEndpoint, key, value)) return this;
     tags.put(key, value);
     return this;
   }
@@ -79,6 +84,7 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
   }
 
   @Override public BraveSpanBuilder withTag(String key, Number value) {
+    if (trySetPeer(remoteEndpoint, key, value)) return this;
     return withTag(key, value.toString());
   }
 
@@ -166,6 +172,6 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
     } else {
       result = span.start();
     }
-    return BraveSpan.wrap(result);
+    return BraveSpan.wrap(result, remoteEndpoint.build());
   }
 }
