@@ -65,7 +65,7 @@ final class BraveScopeManager implements ScopeManager {
     BraveScope braveScope = activeSpans.get(spanId);
     if (braveScope == null) {
       braveScope = new BraveScope(this, tracer.withSpanInScope(span),
-          BraveSpan.wrap(span, BraveSpan.EMPTY_ENDPOINT), finishSpanOnClose);
+          new BraveSpan(span, BraveSpan.EMPTY_ENDPOINT), finishSpanOnClose);
       activeSpans.put(spanId, braveScope);
     }
     return braveScope;

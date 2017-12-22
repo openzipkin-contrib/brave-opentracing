@@ -15,6 +15,9 @@ package brave.opentracing;
 
 import brave.Tracing;
 import brave.propagation.StrictCurrentTraceContext;
+import com.tngtech.java.junit.dataprovider.DataProvider;
+import com.tngtech.java.junit.dataprovider.DataProviderRunner;
+import com.tngtech.java.junit.dataprovider.UseDataProvider;
 import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
@@ -28,11 +31,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import zipkin2.Endpoint;
+import zipkin2.Span.Kind;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
 
+@RunWith(DataProviderRunner.class)
 public class BraveSpanTest {
   List<zipkin2.Span> spans = new ArrayList<>();
   BraveTracer tracer = BraveTracer.create(
@@ -60,26 +66,70 @@ public class BraveSpanTest {
         .hasSize(1);
   }
 
-  /** Span kind should be set at builder, not after start */
-  @Test public void spanKind_client() {
-    tracer.buildSpan("foo")
-        .withTag(Tags.SPAN_KIND.getKey(), Tags.SPAN_KIND_CLIENT)
-        .startManual().finish();
-
-    assertThat(spans)
-        .flatExtracting(zipkin2.Span::kind)
-        .containsExactly(zipkin2.Span.Kind.CLIENT);
+  @DataProvider
+  public static Object[][] dataProviderKind() {
+    return new Object[][] {
+        {Tags.SPAN_KIND_CLIENT, Kind.CLIENT},
+        {Tags.SPAN_KIND_SERVER, Kind.SERVER},
+        {Tags.SPAN_KIND_PRODUCER, Kind.PRODUCER},
+        {Tags.SPAN_KIND_CONSUMER, Kind.CONSUMER}
+    };
   }
 
-  /** Span kind should be set at builder, not after start */
-  @Test public void spanKind_server() {
+  @Test @UseDataProvider("dataProviderKind")
+  public void spanKind_beforeStart(String tagValue, Kind kind) {
     tracer.buildSpan("foo")
-        .withTag(Tags.SPAN_KIND.getKey(), Tags.SPAN_KIND_SERVER)
+        .withTag(Tags.SPAN_KIND.getKey(), tagValue)
         .startManual().finish();
 
-    assertThat(spans)
-        .flatExtracting(zipkin2.Span::kind)
-        .containsExactly(zipkin2.Span.Kind.SERVER);
+    zipkin2.Span span = spans.get(0);
+    assertThat(span.kind())
+        .isEqualTo(kind);
+
+    assertThat(span.tags())
+        .isEmpty();
+  }
+
+  @Test public void spanKind_beforeStart_mismatch() {
+    tracer.buildSpan("foo")
+        .withTag(Tags.SPAN_KIND.getKey(), "antelope")
+        .startManual().finish();
+
+    zipkin2.Span span = spans.get(0);
+    assertThat(span.kind())
+        .isNull();
+
+    assertThat(span.tags())
+        .containsEntry("span.kind", "antelope");
+  }
+
+  @Test @UseDataProvider("dataProviderKind")
+  public void spanKind_afterStart(String tagValue, Kind kind) {
+    tracer.buildSpan("foo")
+        .startManual()
+        .setTag(Tags.SPAN_KIND.getKey(), tagValue)
+        .finish();
+
+    zipkin2.Span span = spans.get(0);
+    assertThat(span.kind())
+        .isEqualTo(kind);
+
+    assertThat(span.tags())
+        .isEmpty();
+  }
+
+  @Test public void spanKind_afterStart_mismatch() {
+    tracer.buildSpan("foo")
+        .startManual()
+        .setTag(Tags.SPAN_KIND.getKey(), "antelope")
+        .finish();
+
+    zipkin2.Span span = spans.get(0);
+    assertThat(span.kind())
+        .isNull();
+
+    assertThat(span.tags())
+        .containsEntry("span.kind", "antelope");
   }
 
   /** Tags end up as string binary annotations */

@@ -35,17 +35,10 @@ public final class BraveSpan implements Span {
   private final Endpoint.Builder remoteEndpointBuilder;
 
   BraveSpan(brave.Span delegate, Endpoint remoteEndpoint) {
+    if (delegate == null) throw new NullPointerException("delegate == null");
     this.delegate = delegate;
     this.remoteEndpointBuilder = remoteEndpoint.toBuilder(); // so that the builder can be reused
     this.context = BraveSpanContext.wrap(delegate.context());
-  }
-
-  /**
-   * Converts an existing {@linkplain brave.Span} for use in OpenTracing apis
-   */
-  static BraveSpan wrap(brave.Span span, Endpoint remoteEndpoint) {
-    if (span == null) throw new NullPointerException("span == null");
-    return new BraveSpan(span, remoteEndpoint);
   }
 
   /**
@@ -61,14 +54,8 @@ public final class BraveSpan implements Span {
 
   @Override public Span setTag(String key, String value) {
     if (trySetPeer(remoteEndpointBuilder, key, value)) return this;
-
+    if (trySetKind(delegate, key, value)) return this;
     delegate.tag(key, value);
-
-    if (Tags.SPAN_KIND.getKey().equals(key) && Tags.SPAN_KIND_CLIENT.equals(value)) {
-      delegate.kind(brave.Span.Kind.CLIENT);
-    } else if (Tags.SPAN_KIND.getKey().equals(key) && Tags.SPAN_KIND_SERVER.equals(value)) {
-      delegate.kind(brave.Span.Kind.SERVER);
-    }
     return this;
   }
 
@@ -92,29 +79,6 @@ public final class BraveSpan implements Span {
     if (fields.isEmpty()) return this;
     // in real life, do like zipkin-go-opentracing: "key1=value1 key2=value2"
     return log(timestampMicroseconds, toAnnotation(fields));
-  }
-
-  /**
-   * Converts a map to a string of form: "key1=value1 key2=value2"
-   */
-  static String toAnnotation(Map<String, ?> fields) {
-    // special-case the "event" field which is similar to the semantics of a zipkin annotation
-    Object event = fields.get("event");
-    if (event != null && fields.size() == 1) return event.toString();
-
-    return joinOnEqualsSpace(fields);
-  }
-
-  static String joinOnEqualsSpace(Map<String, ?> fields) {
-    if (fields.isEmpty()) return "";
-
-    StringBuilder result = new StringBuilder();
-    for (Iterator<? extends Entry<String, ?>> i = fields.entrySet().iterator(); i.hasNext(); ) {
-      Map.Entry<String, ?> next = i.next();
-      result.append(next.getKey()).append('=').append(next.getValue());
-      if (i.hasNext()) result.append(' ');
-    }
-    return result.toString();
   }
 
   @Override public Span log(String event) {
@@ -162,11 +126,53 @@ public final class BraveSpan implements Span {
     delegate.finish(finishMicros);
   }
 
+  /**
+   * Converts a map to a string of form: "key1=value1 key2=value2"
+   */
+  static String toAnnotation(Map<String, ?> fields) {
+    // special-case the "event" field which is similar to the semantics of a zipkin annotation
+    Object event = fields.get("event");
+    if (event != null && fields.size() == 1) return event.toString();
+
+    return joinOnEqualsSpace(fields);
+  }
+
+  static String joinOnEqualsSpace(Map<String, ?> fields) {
+    if (fields.isEmpty()) return "";
+
+    StringBuilder result = new StringBuilder();
+    for (Iterator<? extends Entry<String, ?>> i = fields.entrySet().iterator(); i.hasNext(); ) {
+      Map.Entry<String, ?> next = i.next();
+      result.append(next.getKey()).append('=').append(next.getValue());
+      if (i.hasNext()) result.append(' ');
+    }
+    return result.toString();
+  }
+
   void trySetRemoteEndpoint() {
     Endpoint remoteEndpoint = remoteEndpointBuilder.build();
     if (!remoteEndpoint.equals(EMPTY_ENDPOINT)) {
       delegate.remoteEndpoint(remoteEndpoint);
     }
+  }
+
+  static boolean trySetKind(brave.Span span, String key, String value) {
+    if (!Tags.SPAN_KIND.getKey().equals(key)) return false;
+
+    if (Tags.SPAN_KIND_CLIENT.equals(value)) {
+      span.kind(brave.Span.Kind.CLIENT);
+    } else if (Tags.SPAN_KIND_SERVER.equals(value)) {
+      span.kind(brave.Span.Kind.SERVER);
+    } else if (Tags.SPAN_KIND_CLIENT.equals(value)) {
+      span.kind(brave.Span.Kind.CLIENT);
+    } else if (Tags.SPAN_KIND_PRODUCER.equals(value)) {
+      span.kind(brave.Span.Kind.PRODUCER);
+    } else if (Tags.SPAN_KIND_CONSUMER.equals(value)) {
+      span.kind(brave.Span.Kind.CONSUMER);
+    } else {
+      return false;
+    }
+    return true;
   }
 
   static boolean trySetPeer(Endpoint.Builder remoteEndpoint, String key, String value) {
