@@ -14,7 +14,6 @@
 package brave.opentracing;
 
 import io.opentracing.Span;
-import io.opentracing.SpanContext;
 import io.opentracing.tag.Tags;
 import java.util.Iterator;
 import java.util.Map;
@@ -30,15 +29,14 @@ import zipkin2.Endpoint;
 public final class BraveSpan implements Span {
   static final Endpoint EMPTY_ENDPOINT = Endpoint.newBuilder().build();
 
-  private final brave.Span delegate;
-  private final SpanContext context;
+  /** Reference invalidated when sampling priority set to 0, which can happen on any thread */
+  volatile brave.Span delegate;
   private final Endpoint.Builder remoteEndpointBuilder;
 
   BraveSpan(brave.Span delegate, Endpoint remoteEndpoint) {
     if (delegate == null) throw new NullPointerException("delegate == null");
     this.delegate = delegate;
     this.remoteEndpointBuilder = remoteEndpoint.toBuilder(); // so that the builder can be reused
-    this.context = BraveSpanContext.wrap(delegate.context());
   }
 
   /**
@@ -48,45 +46,56 @@ public final class BraveSpan implements Span {
     return delegate;
   }
 
-  @Override public SpanContext context() {
-    return context;
+  @Override public BraveSpanContext context() {
+    return BraveSpanContext.wrap(delegate.context());
   }
 
-  @Override public Span setTag(String key, String value) {
+  @Override public BraveSpan setTag(String key, String value) {
     if (trySetPeer(remoteEndpointBuilder, key, value)) return this;
     if (trySetKind(delegate, key, value)) return this;
     delegate.tag(key, value);
     return this;
   }
 
-  @Override public Span setTag(String key, boolean value) {
+  @Override public BraveSpan setTag(String key, boolean value) {
     if (Tags.ERROR.getKey().equals(key) && !value) return this;
     return setTag(key, Boolean.toString(value));
   }
 
-  @Override public Span setTag(String key, Number value) {
+  /**
+   * <em>Note:</em>If the key is {@linkplain Tags#SAMPLING_PRIORITY} and the value is zero, the
+   * current span will be abandoned and future references to the {@link #context()} will be
+   * unsampled. This does not affect the active span, nor does it affect any equivalent instances
+   * of this object. This is a best efforts means to handle late sampling decisions.
+   */
+  @Override public BraveSpan setTag(String key, Number value) {
     if (trySetPeer(remoteEndpointBuilder, key, value)) return this;
+
+    // handle late sampling decision
+    if (Tags.SAMPLING_PRIORITY.getKey().equals(key) && value.intValue() == 0) {
+      delegate.abandon();
+      delegate = new AbandonedSpan(delegate.context().toBuilder().sampled(false).build());
+    }
     return setTag(key, value.toString());
   }
 
-  @Override public Span log(Map<String, ?> fields) {
+  @Override public BraveSpan log(Map<String, ?> fields) {
     if (fields.isEmpty()) return this;
-    // in real life, do like zipkin-go-opentracing: "key1=value1 key2=value2"
     return log(toAnnotation(fields));
   }
 
-  @Override public Span log(long timestampMicroseconds, Map<String, ?> fields) {
+  @Override public BraveSpan log(long timestampMicroseconds, Map<String, ?> fields) {
     if (fields.isEmpty()) return this;
     // in real life, do like zipkin-go-opentracing: "key1=value1 key2=value2"
     return log(timestampMicroseconds, toAnnotation(fields));
   }
 
-  @Override public Span log(String event) {
+  @Override public BraveSpan log(String event) {
     delegate.annotate(event);
     return this;
   }
 
-  @Override public Span log(long timestampMicroseconds, String event) {
+  @Override public BraveSpan log(long timestampMicroseconds, String event) {
     delegate.annotate(timestampMicroseconds, event);
     return this;
   }
@@ -97,7 +106,7 @@ public final class BraveSpan implements Span {
    */
   // OpenTracing could one day define a way to plug-in arbitrary baggage handling similar to how
   // it has feature-specific apis like active-span
-  @Override public Span setBaggageItem(String key, String value) {
+  @Override public BraveSpan setBaggageItem(String key, String value) {
     return this;
   }
 
@@ -111,7 +120,7 @@ public final class BraveSpan implements Span {
     return null;
   }
 
-  @Override public Span setOperationName(String operationName) {
+  @Override public BraveSpan setOperationName(String operationName) {
     delegate.name(operationName);
     return this;
   }
