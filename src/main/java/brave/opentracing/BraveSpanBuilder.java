@@ -65,7 +65,7 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
   }
 
   @Override public BraveSpanBuilder addReference(String type, SpanContext context) {
-    if (parent != null) {
+    if (parent != null || context == null) {
       return this;
     }
     if (References.CHILD_OF.equals(type) || References.FOLLOWS_FROM.equals(type)) {
