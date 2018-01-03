@@ -51,7 +51,7 @@ public class BraveTracerTest {
     io.opentracing.Span openTracingSpan = opentracing.buildSpan("encode")
         .withTag("lc", "codec")
         .withStartTimestamp(1L)
-        .startManual();
+        .start();
 
     Span braveSpan = ((BraveSpan) openTracingSpan).unwrap();
 
@@ -216,15 +216,15 @@ public class BraveTracerTest {
     Long parentIdOfSpanB;
     Long parentIdOfSpanC;
 
-    try (Scope scopeA = opentracing.buildSpan("spanA").startActive()) {
+    try (Scope scopeA = opentracing.buildSpan("spanA").startActive(false)) {
       idOfSpanA = getTraceContext(scopeA).spanId();
-      try (Scope scopeB = opentracing.buildSpan("spanB").startActive()) {
+      try (Scope scopeB = opentracing.buildSpan("spanB").startActive(false)) {
         idOfSpanB = getTraceContext(scopeB).spanId();
         parentIdOfSpanB = getTraceContext(scopeB).parentId();
         shouldBeIdOfSpanB = getTraceContext(opentracing.scopeManager().active()).spanId();
       }
       shouldBeIdOfSpanA = getTraceContext(opentracing.scopeManager().active()).spanId();
-      try (Scope scopeC = opentracing.buildSpan("spanC").startActive()) {
+      try (Scope scopeC = opentracing.buildSpan("spanC").startActive(false)) {
         parentIdOfSpanC = getTraceContext(scopeC).parentId();
       }
     }
@@ -282,36 +282,36 @@ public class BraveTracerTest {
   }
 
   @Test public void implicitParentFromSpanManager_startActive() {
-    try (Scope scopeA = opentracing.buildSpan("spanA").startActive()) {
-      try (Scope scopeB = opentracing.buildSpan("spanA").startActive()) {
+    try (Scope scopeA = opentracing.buildSpan("spanA").startActive(true)) {
+      try (Scope scopeB = opentracing.buildSpan("spanA").startActive(true)) {
         assertThat(getTraceContext(scopeB).parentId())
             .isEqualTo(getTraceContext(scopeA).spanId());
       }
     }
   }
 
-  @Test public void implicitParentFromSpanManager_startManual() {
-    try (Scope scopeA = opentracing.buildSpan("spanA").startActive()) {
-      BraveSpan span = opentracing.buildSpan("spanB").startManual();
+  @Test public void implicitParentFromSpanManager_start() {
+    try (Scope scopeA = opentracing.buildSpan("spanA").startActive(true)) {
+      BraveSpan span = opentracing.buildSpan("spanB").start();
       assertThat(span.unwrap().context().parentId())
           .isEqualTo(getTraceContext(scopeA).spanId());
     }
   }
 
   @Test public void implicitParentFromSpanManager_startActive_ignoreActiveSpan() {
-    try (Scope scopeA = opentracing.buildSpan("spanA").startActive()) {
+    try (Scope scopeA = opentracing.buildSpan("spanA").startActive(true)) {
       try (Scope scopeB = opentracing.buildSpan("spanA")
-          .ignoreActiveSpan().startActive()) {
+          .ignoreActiveSpan().startActive(true)) {
         assertThat(getTraceContext(scopeB).parentId())
             .isNull(); // new trace
       }
     }
   }
 
-  @Test public void implicitParentFromSpanManager_startManual_ignoreActiveSpan() {
-    try (Scope scopeA = opentracing.buildSpan("spanA").startActive()) {
+  @Test public void implicitParentFromSpanManager_start_ignoreActiveSpan() {
+    try (Scope scopeA = opentracing.buildSpan("spanA").startActive(true)) {
       BraveSpan span = opentracing.buildSpan("spanB")
-          .ignoreActiveSpan().startManual();
+          .ignoreActiveSpan().start();
       assertThat(span.unwrap().context().parentId())
           .isNull(); // new trace
     }
@@ -320,7 +320,7 @@ public class BraveTracerTest {
   @Test public void ignoresErrorFalseTag_beforeStart() {
     opentracing.buildSpan("encode")
         .withTag("error", false)
-        .startManual().finish();
+        .start().finish();
 
     assertThat(spans.get(0).tags())
         .isEmpty();
@@ -328,7 +328,7 @@ public class BraveTracerTest {
 
   @Test public void ignoresErrorFalseTag_afterStart() {
     opentracing.buildSpan("encode")
-        .startManual()
+        .start()
         .setTag("error", false)
         .finish();
 

@@ -95,12 +95,8 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
     return this;
   }
 
-  @Override public BraveSpan start() {
-    return startManual();
-  }
-
-  @Override public Scope startActive() {
-    return startActive(true);
+  @Override @Deprecated public BraveSpan startManual() {
+    return start();
   }
 
   @Override public Scope startActive(boolean finishSpanOnClose) {
@@ -110,7 +106,7 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
         asChildOf(parent.span());
       }
     }
-    return tracer.scopeManager().activate(startManual(), finishSpanOnClose);
+    return tracer.scopeManager().activate(start(), finishSpanOnClose);
   }
 
   @Override public BraveSpanBuilder ignoreActiveSpan() {
@@ -118,7 +114,7 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
     return this;
   }
 
-  @Override public BraveSpan startManual() {
+  @Override public BraveSpan start() {
     boolean server = Tags.SPAN_KIND_SERVER.equals(tags.get(Tags.SPAN_KIND.getKey()));
 
     // Check if active span should be established as CHILD_OF relationship
