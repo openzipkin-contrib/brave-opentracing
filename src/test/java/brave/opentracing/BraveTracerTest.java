@@ -1,5 +1,5 @@
 /**
- * Copyright 2016-2017 The OpenZipkin Authors
+ * Copyright 2016-2018 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.junit.After;
 import org.junit.Test;
 import zipkin2.Annotation;
 
@@ -337,5 +338,10 @@ public class BraveTracerTest {
 
   private static TraceContext getTraceContext(Scope scope) {
     return ((BraveSpanContext) scope.span().context()).unwrap();
+  }
+
+  @After public void clear() {
+    Tracing current = Tracing.current();
+    if (current != null) current.close();
   }
 }

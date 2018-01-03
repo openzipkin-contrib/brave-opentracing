@@ -1,5 +1,5 @@
 /**
- * Copyright 2016-2017 The OpenZipkin Authors
+ * Copyright 2016-2018 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.junit.After;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import zipkin2.Endpoint;
@@ -248,5 +249,10 @@ public class BraveSpanTest {
             .ip("1.2.3.4")
             .ip("2001:db8::c001")
             .port(8080).build());
+  }
+
+  @After public void clear() {
+    Tracing current = Tracing.current();
+    if (current != null) current.close();
   }
 }
