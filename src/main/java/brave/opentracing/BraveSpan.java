@@ -13,6 +13,7 @@
  */
 package brave.opentracing;
 
+import brave.propagation.ExtraFieldPropagation;
 import io.opentracing.Span;
 import io.opentracing.tag.Tags;
 import java.util.Iterator;
@@ -100,24 +101,15 @@ public final class BraveSpan implements Span {
     return this;
   }
 
-  /**
-   * This is a NOOP as neither <a href="https://github.com/openzipkin/b3-propagation">B3</a> nor
-   * Brave include baggage support.
-   */
-  // OpenTracing could one day define a way to plug-in arbitrary baggage handling similar to how
-  // it has feature-specific apis like active-span
+  /** This is a NOOP unless {@link ExtraFieldPropagation} is in use */
   @Override public BraveSpan setBaggageItem(String key, String value) {
+    ExtraFieldPropagation.set(delegate.context(), key, value);
     return this;
   }
 
-  /**
-   * Returns null as neither <a href="https://github.com/openzipkin/b3-propagation">B3</a> nor Brave
-   * include baggage support.
-   */
-  // OpenTracing could one day define a way to plug-in arbitrary baggage handling similar to how
-  // it has feature-specific apis like active-span
+  /** Returns null unless {@link ExtraFieldPropagation} is in use */
   @Override public String getBaggageItem(String key) {
-    return null;
+    return ExtraFieldPropagation.get(delegate.context(), key);
   }
 
   @Override public BraveSpan setOperationName(String operationName) {

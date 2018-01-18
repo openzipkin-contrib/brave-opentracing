@@ -13,9 +13,9 @@
  */
 package brave.opentracing;
 
+import brave.propagation.ExtraFieldPropagation;
 import brave.propagation.TraceContext;
 import io.opentracing.SpanContext;
-import java.util.Collections;
 import java.util.Map;
 
 /**
@@ -29,6 +29,7 @@ public final class BraveSpanContext implements SpanContext {
 
   private final TraceContext traceContext;
 
+  // don't expose this as we may need to pass propagation info later
   static BraveSpanContext wrap(TraceContext traceContext) {
     return new BraveSpanContext(traceContext);
   }
@@ -44,12 +45,8 @@ public final class BraveSpanContext implements SpanContext {
     this.traceContext = traceContext;
   }
 
-  /**
-   * Returns empty as neither <a href="https://github.com/openzipkin/b3-propagation">B3</a> nor
-   * Brave include baggage support.
-   */
+  /** Returns empty unless {@link ExtraFieldPropagation} is in use */
   @Override public Iterable<Map.Entry<String, String>> baggageItems() {
-    // brave doesn't support baggage
-    return Collections.EMPTY_SET;
+    return ExtraFieldPropagation.getAll(traceContext).entrySet();
   }
 }

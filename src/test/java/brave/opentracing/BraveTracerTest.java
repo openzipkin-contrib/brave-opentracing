@@ -16,7 +16,10 @@ package brave.opentracing;
 import brave.Span;
 import brave.Tracer.SpanInScope;
 import brave.Tracing;
+import brave.propagation.B3Propagation;
+import brave.propagation.ExtraFieldPropagation;
 import brave.propagation.Propagation;
+import brave.propagation.StrictCurrentTraceContext;
 import brave.propagation.TraceContext;
 import io.opentracing.Scope;
 import io.opentracing.propagation.Format;
@@ -24,6 +27,7 @@ import io.opentracing.propagation.TextMap;
 import io.opentracing.propagation.TextMapExtractAdapter;
 import io.opentracing.propagation.TextMapInjectAdapter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +47,10 @@ public class BraveTracerTest {
 
   List<zipkin2.Span> spans = new ArrayList<>();
   Tracing brave = Tracing.newBuilder()
+      .currentTraceContext(new StrictCurrentTraceContext())
+      .propagationFactory(ExtraFieldPropagation.newFactoryBuilder(B3Propagation.FACTORY)
+          .addPrefixedFields("baggage-", Arrays.asList("country-code", "user-id"))
+          .build())
       .spanReporter(spans::add)
       .build();
   BraveTracer opentracing = BraveTracer.create(brave);
@@ -89,6 +97,20 @@ public class BraveTracerTest {
             .traceId(1L)
             .spanId(2L)
             .sampled(true).build());
+  }
+
+  @Test public void extractBaggage() throws Exception {
+    Map<String, String> map = new LinkedHashMap<>();
+    map.put("X-B3-TraceId", "0000000000000001");
+    map.put("X-B3-SpanId", "0000000000000002");
+    map.put("X-B3-Sampled", "1");
+    map.put("baggage-country-code", "FO");
+
+    BraveSpanContext openTracingContext = opentracing.extract(Format.Builtin.HTTP_HEADERS,
+        new TextMapExtractAdapter(map));
+
+    assertThat(openTracingContext.baggageItems())
+        .containsExactly(entry("country-code", "FO"));
   }
 
   @Test public void extractTraceContextTextMap() throws Exception {
@@ -151,6 +173,17 @@ public class BraveTracerTest {
         entry("X-B3-SpanId", "0000000000000002"),
         entry("X-B3-Sampled", "1")
     );
+  }
+
+  @Test public void injectTraceContext_baggage() throws Exception {
+    BraveSpan span = opentracing.buildSpan("foo").start();
+    span.setBaggageItem("country-code", "FO");
+
+    Map<String, String> map = new LinkedHashMap<>();
+    TextMapInjectAdapter carrier = new TextMapInjectAdapter(map);
+    opentracing.inject(span.context(), Format.Builtin.HTTP_HEADERS, carrier);
+
+    assertThat(map).containsEntry("baggage-country-code", "FO");
   }
 
   @Test public void injectTraceContextTextMap() throws Exception {
