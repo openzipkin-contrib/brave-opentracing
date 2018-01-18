@@ -1,5 +1,5 @@
 /**
- * Copyright 2016-2017 The OpenZipkin Authors
+ * Copyright 2016-2018 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -19,7 +19,9 @@ import brave.propagation.TraceContext;
 import brave.propagation.TraceContext.Extractor;
 import brave.propagation.TraceContext.Injector;
 import brave.propagation.TraceContextOrSamplingFlags;
+import io.opentracing.Scope;
 import io.opentracing.ScopeManager;
+import io.opentracing.Span;
 import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
 import io.opentracing.propagation.Format;
@@ -146,6 +148,11 @@ public final class BraveTracer implements Tracer {
 
   @Override public ScopeManager scopeManager() {
     return scopeManager;
+  }
+
+  @Override public BraveSpan activeSpan() {
+    Scope scope = this.scopeManager.active();
+    return scope != null ? (BraveSpan) scope.span() : null;
   }
 
   @Override public BraveSpanBuilder buildSpan(String operationName) {

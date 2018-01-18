@@ -52,7 +52,7 @@ public class BraveSpanTest {
 
   /** OpenTracing span implements auto-closeable, and implies reporting on close */
   @Test public void autoCloseOnTryFinally() {
-    try (Scope scope = tracer.buildSpan("foo").startActive()) {
+    try (Scope scope = tracer.buildSpan("foo").startActive(true)) {
     }
 
     assertThat(spans)
@@ -60,12 +60,20 @@ public class BraveSpanTest {
   }
 
   @Test public void autoCloseOnTryFinally_doesntReportTwice() {
-    try (Scope scope = tracer.buildSpan("foo").startActive()) {
+    try (Scope scope = tracer.buildSpan("foo").startActive(true)) {
       scope.span().finish(); // user closes and also auto-close closes
     }
 
     assertThat(spans)
         .hasSize(1);
+  }
+
+  @Test public void autoCloseOnTryFinally_dontClose() {
+    try (Scope scope = tracer.buildSpan("foo").startActive(false)) {
+    }
+
+    assertThat(spans)
+        .isEmpty();
   }
 
   @DataProvider
@@ -82,7 +90,7 @@ public class BraveSpanTest {
   public void spanKind_beforeStart(String tagValue, Kind kind) {
     tracer.buildSpan("foo")
         .withTag(Tags.SPAN_KIND.getKey(), tagValue)
-        .startManual().finish();
+        .start().finish();
 
     zipkin2.Span span = spans.get(0);
     assertThat(span.kind())
@@ -95,7 +103,7 @@ public class BraveSpanTest {
   @Test public void spanKind_beforeStart_mismatch() {
     tracer.buildSpan("foo")
         .withTag(Tags.SPAN_KIND.getKey(), "antelope")
-        .startManual().finish();
+        .start().finish();
 
     zipkin2.Span span = spans.get(0);
     assertThat(span.kind())
@@ -108,7 +116,7 @@ public class BraveSpanTest {
   @Test @UseDataProvider("dataProviderKind")
   public void spanKind_afterStart(String tagValue, Kind kind) {
     tracer.buildSpan("foo")
-        .startManual()
+        .start()
         .setTag(Tags.SPAN_KIND.getKey(), tagValue)
         .finish();
 
@@ -122,7 +130,7 @@ public class BraveSpanTest {
 
   @Test public void spanKind_afterStart_mismatch() {
     tracer.buildSpan("foo")
-        .startManual()
+        .start()
         .setTag(Tags.SPAN_KIND.getKey(), "antelope")
         .finish();
 
@@ -136,7 +144,7 @@ public class BraveSpanTest {
 
   /** Tags end up as string binary annotations */
   @Test public void startedSpan_setTag() {
-    Span span = tracer.buildSpan("foo").startManual();
+    Span span = tracer.buildSpan("foo").start();
     span.setTag("hello", "monster");
     span.finish();
 
@@ -148,7 +156,7 @@ public class BraveSpanTest {
   @Test public void childSpanWhenParentIsExtracted() throws IOException {
     Span spanClient = tracer.buildSpan("foo")
         .withTag(Tags.SPAN_KIND.getKey(), Tags.SPAN_KIND_CLIENT)
-        .startManual();
+        .start();
 
     Map<String, String> carrier = new LinkedHashMap<>();
     tracer.inject(spanClient.context(), Format.Builtin.TEXT_MAP, new TextMapInjectAdapter(carrier));
@@ -165,11 +173,11 @@ public class BraveSpanTest {
     Span spanServer = tracer2.buildSpan("foo")
         .asChildOf(extractedContext)
         .withTag(Tags.SPAN_KIND.getKey(), Tags.SPAN_KIND_SERVER)
-        .startManual();
+        .start();
 
     tracer2.buildSpan("bar")
         .asChildOf(spanServer)
-        .startManual()
+        .start()
         .finish();
 
     spanServer.finish();
@@ -190,7 +198,7 @@ public class BraveSpanTest {
   @Test public void samplingPriority_unsampledWhenAtStart() {
     BraveSpan span = tracer.buildSpan("foo")
         .withTag(SAMPLING_PRIORITY.getKey(), 0)
-        .startManual();
+        .start();
 
     assertThat(span.context().unwrap().sampled())
         .isFalse();
@@ -201,7 +209,7 @@ public class BraveSpanTest {
 
   @Test public void samplingPriority_abandonsAndUnsampledAfterStart() {
     BraveSpan span = tracer.buildSpan("foo")
-        .startManual();
+        .start();
 
     assertThat(span.context().unwrap().sampled())
         .isTrue();
@@ -224,7 +232,7 @@ public class BraveSpanTest {
         .withTag(Tags.PEER_HOST_IPV4.getKey(), "1.2.3.4")
         .withTag(Tags.PEER_HOST_IPV6.getKey(), "2001:db8::c001")
         .withTag(Tags.PEER_PORT.getKey(), 8080)
-        .startManual().finish();
+        .start().finish();
 
     assertThat(spans.get(0).remoteEndpoint())
         .isEqualTo(Endpoint.newBuilder()
@@ -236,7 +244,7 @@ public class BraveSpanTest {
 
   @Test public void setPeerTags_afterStart() {
     tracer.buildSpan("encode")
-        .startManual()
+        .start()
         .setTag(Tags.PEER_SERVICE.getKey(), "jupiter")
         .setTag(Tags.PEER_HOST_IPV4.getKey(), "1.2.3.4")
         .setTag(Tags.PEER_HOST_IPV6.getKey(), "2001:db8::c001")

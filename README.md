@@ -20,10 +20,18 @@ Firstly, you need a Tracer, configured to [report to Zipkin](https://github.com/
 sender = OkHttpSender.create("http://127.0.0.1:9411/api/v2/spans");
 spanReporter = AsyncReporter.create(sender);
 
+// If you want to support baggage, indicate the fields you'd like to
+// whitelist, in this case "country-code" and "user-id". On the wire,
+// they will be prefixed like "baggage-country-code"
+propagationFactory = ExtraFieldPropagation.newFactoryBuilder(B3Propagation.FACTORY)
+                                .addPrefixedFields("baggage-", Arrays.asList("country-code", "user-id"))
+                                .build();
+
 // Now, create a Brave tracing component with the service name you want to see in Zipkin.
 //   (the dependency is io.zipkin.brave:brave)
 braveTracing = Tracing.newBuilder()
                       .localServiceName("my-service")
+                      .propagationFactory(propagationFactory)
                       .spanReporter(spanReporter)
                       .build();
 
