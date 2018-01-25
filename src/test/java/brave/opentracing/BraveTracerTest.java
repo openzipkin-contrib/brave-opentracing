@@ -148,14 +148,14 @@ public class BraveTracerTest {
             .sampled(true).build());
   }
 
-  @Test public void extractTraceContextReturnsNull() throws Exception {
+  @Test public void extractTraceContext_unwrapReturnsNull() throws Exception {
     Map<String, String> map = new LinkedHashMap<>();
     map.put("other", "1");
 
     BraveSpanContext openTracingContext = opentracing.extract(Format.Builtin.HTTP_HEADERS,
             new TextMapExtractAdapter(map));
 
-    assertThat(openTracingContext).isNull();
+    assertThat(openTracingContext.unwrap()).isNull();
   }
 
   @Test public void injectTraceContext() throws Exception {
@@ -166,7 +166,7 @@ public class BraveTracerTest {
 
     Map<String, String> map = new LinkedHashMap<>();
     TextMapInjectAdapter carrier = new TextMapInjectAdapter(map);
-    opentracing.inject(BraveSpanContext.wrap(context), Format.Builtin.HTTP_HEADERS, carrier);
+    opentracing.inject(BraveSpanContext.create(context), Format.Builtin.HTTP_HEADERS, carrier);
 
     assertThat(map).containsExactly(
         entry("X-B3-TraceId", "0000000000000001"),
@@ -194,7 +194,7 @@ public class BraveTracerTest {
 
     Map<String, String> map = new LinkedHashMap<>();
     TextMapInjectAdapter carrier = new TextMapInjectAdapter(map);
-    opentracing.inject(BraveSpanContext.wrap(context), Format.Builtin.TEXT_MAP, carrier);
+    opentracing.inject(BraveSpanContext.create(context), Format.Builtin.TEXT_MAP, carrier);
 
     assertThat(map).containsExactly(
         entry("X-B3-TraceId", "0000000000000001"),
@@ -216,7 +216,7 @@ public class BraveTracerTest {
 
     Map<String, String> map = new LinkedHashMap<>();
     TextMapInjectAdapter carrier = new TextMapInjectAdapter(map);
-    opentracing.inject(BraveSpanContext.wrap(context), B3, carrier);
+    opentracing.inject(BraveSpanContext.create(context), B3, carrier);
 
     assertThat(map).containsExactly(
         entry("X-B3-TraceId", "0000000000000001"),

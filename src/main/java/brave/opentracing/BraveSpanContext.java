@@ -15,38 +15,85 @@ package brave.opentracing;
 
 import brave.propagation.ExtraFieldPropagation;
 import brave.propagation.TraceContext;
+import brave.propagation.TraceContextOrSamplingFlags;
 import io.opentracing.SpanContext;
+import io.opentracing.propagation.Format;
 import java.util.Map;
 
 /**
- * Holds the {@linkplain TraceContext} used by the underlying {@linkplain brave.Tracer}. An {@link
- * TraceContext#sampled() unsampled} context results in a {@link brave.NoopSpan}.
+ * Holds the {@linkplain TraceContext} used by the underlying {@linkplain brave.Tracer}, or an {link
+ * TraceContextOrSamplingFlags extraction result if an incoming context}. An {@link TraceContext#sampled() unsampled}
+ * context results in a {@link brave.NoopSpan}.
  *
  * <p>This type also includes hooks to integrate with the underlying {@linkplain brave.Tracer}. Ex
  * you can access the underlying trace context with {@link #unwrap}
  */
-public final class BraveSpanContext implements SpanContext {
-
-  private final TraceContext traceContext;
-
-  // don't expose this as we may need to pass propagation info later
-  static BraveSpanContext wrap(TraceContext traceContext) {
-    return new BraveSpanContext(traceContext);
-  }
-
+public abstract class BraveSpanContext implements SpanContext {
   /**
-   * Returns the underlying trace context for use in Brave apis
+   * Returns the underlying trace context for use in Brave apis, or null if this object does not
+   * represent a span.
+   *
+   * <p>When a span context is returned from {@link BraveSpan#context()}, there's no ambiguity. It
+   * represents the current span. However, a span context can be in an intermediate state when
+   * extracted from headers. In other words, unwrap might not have a {@link TraceContext} to return.
+   *
+   * <p>Why? {@link BraveTracer#extract(Format, Object) Extraction from headers} can return partial
+   * info. For example, in Amazon Web Services, you may be suggested just a trace ID. In other cases, you
+   * might just inherit baggage or a sampling hint.
    */
-  public TraceContext unwrap() {
-    return traceContext;
-  }
-
-  private BraveSpanContext(TraceContext traceContext) {
-    this.traceContext = traceContext;
-  }
+  public abstract TraceContext unwrap();
 
   /** Returns empty unless {@link ExtraFieldPropagation} is in use */
-  @Override public Iterable<Map.Entry<String, String>> baggageItems() {
-    return ExtraFieldPropagation.getAll(traceContext).entrySet();
+  @Override public abstract Iterable<Map.Entry<String, String>> baggageItems();
+
+  static BraveSpanContext create(TraceContext context) {
+    return new Complete(context);
+  }
+
+  static BraveSpanContext create(TraceContextOrSamplingFlags extractionResult) {
+    return extractionResult.context() != null
+        ? new BraveSpanContext.Complete(extractionResult.context())
+        : new BraveSpanContext.Incomplete(extractionResult);
+  }
+
+  static final class Complete extends BraveSpanContext {
+    private final TraceContext context;
+
+    Complete(TraceContext context) {
+      this.context = context;
+    }
+
+    @Override public TraceContext unwrap() {
+      return context;
+    }
+
+    @Override public Iterable<Map.Entry<String, String>> baggageItems() {
+      return ExtraFieldPropagation.getAll(context).entrySet();
+    }
+  }
+
+  static final class Incomplete extends BraveSpanContext {
+
+    private final TraceContextOrSamplingFlags extractionResult;
+
+    Incomplete(TraceContextOrSamplingFlags extractionResult) {
+      this.extractionResult = extractionResult;
+    }
+
+    TraceContextOrSamplingFlags extractionResult() { // temporarily hidden
+      return extractionResult;
+    }
+
+    @Override public TraceContext unwrap() {
+      return extractionResult.context();
+    }
+
+    /** Returns empty unless {@link ExtraFieldPropagation} is in use */
+    @Override public Iterable<Map.Entry<String, String>> baggageItems() {
+      return ExtraFieldPropagation.getAll(extractionResult).entrySet();
+    }
+  }
+
+  BraveSpanContext() {
   }
 }

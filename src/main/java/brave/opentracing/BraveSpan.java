@@ -48,7 +48,7 @@ public final class BraveSpan implements Span {
   }
 
   @Override public BraveSpanContext context() {
-    return BraveSpanContext.wrap(delegate.context());
+    return BraveSpanContext.create(delegate.context());
   }
 
   @Override public BraveSpan setTag(String key, String value) {

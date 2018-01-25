@@ -21,7 +21,6 @@ import brave.propagation.TraceContext.Injector;
 import brave.propagation.TraceContextOrSamplingFlags;
 import io.opentracing.Scope;
 import io.opentracing.ScopeManager;
-import io.opentracing.Span;
 import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
 import io.opentracing.propagation.Format;
@@ -180,8 +179,8 @@ public final class BraveTracer implements Tracer {
     if (extractor == null) {
       throw new UnsupportedOperationException(format + " not in " + formatToExtractor.keySet());
     }
-    TraceContextOrSamplingFlags result = extractor.extract((TextMap) carrier);
-    return result.context() != null ? BraveSpanContext.wrap(result.context()) : null;
+    TraceContextOrSamplingFlags extractionResult = extractor.extract((TextMap) carrier);
+    return BraveSpanContext.create(extractionResult);
   }
 
   /**

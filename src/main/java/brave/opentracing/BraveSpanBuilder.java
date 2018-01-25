@@ -47,7 +47,7 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
 
   private String operationName;
   private long timestamp;
-  private TraceContext parent;
+  private BraveSpanContext reference;
   private boolean ignoreActiveSpan = false;
 
   BraveSpanBuilder(Tracer tracer, brave.Tracer braveTracer, String operationName) {
@@ -65,11 +65,11 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
   }
 
   @Override public BraveSpanBuilder addReference(String type, SpanContext context) {
-    if (parent != null || context == null) {
+    if (reference != null || context == null) {
       return this;
     }
     if (References.CHILD_OF.equals(type) || References.FOLLOWS_FROM.equals(type)) {
-      this.parent = ((BraveSpanContext) context).unwrap();
+      this.reference = (BraveSpanContext) context;
     }
     return this;
   }
@@ -118,7 +118,7 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
     boolean server = Tags.SPAN_KIND_SERVER.equals(tags.get(Tags.SPAN_KIND.getKey()));
 
     // Check if active span should be established as CHILD_OF relationship
-    if (parent == null && !ignoreActiveSpan) {
+    if (reference == null && !ignoreActiveSpan) {
       Scope parent = tracer.scopeManager().active();
       if (parent != null) {
         asChildOf(parent.span());
@@ -126,7 +126,8 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
     }
 
     brave.Span span;
-    if (parent == null) {
+    TraceContext context;
+    if (reference == null) {
       // adjust sampling decision, this reflects Zipkin's "before the fact" sampling policy
       // https://github.com/openzipkin/brave/tree/master/brave#sampling
       SamplingFlags samplingFlags = SamplingFlags.EMPTY;
@@ -144,13 +145,13 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
         }
       }
       span = braveTracer.newTrace(samplingFlags);
-    } else if (server && parent.shared()) {
+    } else if ((context = reference.unwrap()) != null) {
       // Zipkin's default is to share a span ID between the client and the server in an RPC.
       // When we start a server span with a parent, we assume the "parent" is actually the
       // client on the other side of the RPC. Accordingly, we join that span instead of fork.
-      span = braveTracer.joinSpan(parent);
+      span = server ? braveTracer.joinSpan(context) : braveTracer.newChild(context);
     } else {
-      span = braveTracer.newChild(parent);
+      span = braveTracer.nextSpan(((BraveSpanContext.Incomplete) reference).extractionResult());
     }
 
     if (operationName != null) span.name(operationName);
