@@ -14,6 +14,8 @@
 package brave.opentracing;
 
 import brave.Tracing;
+import brave.propagation.B3Propagation;
+import brave.propagation.ExtraFieldPropagation;
 import brave.propagation.StrictCurrentTraceContext;
 import com.tngtech.java.junit.dataprovider.DataProvider;
 import com.tngtech.java.junit.dataprovider.DataProviderRunner;
@@ -25,7 +27,6 @@ import io.opentracing.propagation.Format;
 import io.opentracing.propagation.TextMapExtractAdapter;
 import io.opentracing.propagation.TextMapInjectAdapter;
 import io.opentracing.tag.Tags;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -47,6 +48,7 @@ public class BraveSpanTest {
       Tracing.newBuilder()
           .localServiceName("tracer")
           .currentTraceContext(new StrictCurrentTraceContext())
+          .propagationFactory(ExtraFieldPropagation.newFactory(B3Propagation.FACTORY, "client-id"))
           .spanReporter(spans::add).build()
   );
 
@@ -153,7 +155,7 @@ public class BraveSpanTest {
         .containsExactly(entry("hello", "monster"));
   }
 
-  @Test public void childSpanWhenParentIsExtracted() throws IOException {
+  @Test public void childSpanWhenParentIsExtracted() {
     Span spanClient = tracer.buildSpan("foo")
         .withTag(Tags.SPAN_KIND.getKey(), Tags.SPAN_KIND_CLIENT)
         .start();
@@ -186,13 +188,34 @@ public class BraveSpanTest {
     assertThat(spans).hasSize(3);
     assertThat(spans.get(0).traceId()).isEqualTo(spans.get(1).traceId())
         .isEqualTo(spans.get(2).traceId());
-    assertThat(spans.get(1).id()).isNotEqualTo(spans.get(2).id());
+    assertThat(spans.get(1).id()).isEqualTo(spans.get(2).id()); // supportsJoin is default
     assertThat(spans.get(0).id()).isNotEqualTo(spans.get(1).id());
 
     // child first
     assertThat(spans.get(0).localServiceName()).isEqualTo("tracer2");
     assertThat(spans.get(1).localServiceName()).isEqualTo("tracer2");
     assertThat(spans.get(2).localServiceName()).isEqualTo("tracer");
+  }
+
+  @Test public void extractDoesntDropBaggage() {
+    Map<String, String> carrier = new LinkedHashMap<>();
+    carrier.put("client-id", "aloha");
+
+    SpanContext extractedContext =
+        tracer.extract(Format.Builtin.TEXT_MAP, new TextMapExtractAdapter(carrier));
+
+    assertThat(extractedContext.baggageItems())
+        .contains(entry("client-id", "aloha"));
+
+    Span serverSpan = tracer.buildSpan("foo")
+        .asChildOf(extractedContext)
+        .withTag(Tags.SPAN_KIND.getKey(), Tags.SPAN_KIND_SERVER)
+        .start();
+
+    assertThat(serverSpan.getBaggageItem("client-id"))
+        .isEqualTo("aloha");
+
+    serverSpan.finish();
   }
 
   @Test public void samplingPriority_unsampledWhenAtStart() {
