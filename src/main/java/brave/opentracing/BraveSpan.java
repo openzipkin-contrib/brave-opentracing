@@ -13,6 +13,7 @@
  */
 package brave.opentracing;
 
+import brave.Tracer;
 import brave.propagation.ExtraFieldPropagation;
 import io.opentracing.Span;
 import io.opentracing.tag.Tags;
@@ -30,11 +31,14 @@ import zipkin2.Endpoint;
 public final class BraveSpan implements Span {
   static final Endpoint EMPTY_ENDPOINT = Endpoint.newBuilder().build();
 
+  private final Tracer tracer;
+  private final Endpoint.Builder remoteEndpointBuilder;
   /** Reference invalidated when sampling priority set to 0, which can happen on any thread */
   volatile brave.Span delegate;
-  private final Endpoint.Builder remoteEndpointBuilder;
 
-  BraveSpan(brave.Span delegate, Endpoint remoteEndpoint) {
+  // tracer is only needed because the sampling.priority flag is used as a sampling api
+  BraveSpan(brave.Tracer tracer, brave.Span delegate, Endpoint remoteEndpoint) {
+    this.tracer = tracer;
     if (delegate == null) throw new NullPointerException("delegate == null");
     this.delegate = delegate;
     this.remoteEndpointBuilder = remoteEndpoint.toBuilder(); // so that the builder can be reused
@@ -75,7 +79,8 @@ public final class BraveSpan implements Span {
     // handle late sampling decision
     if (Tags.SAMPLING_PRIORITY.getKey().equals(key) && value.intValue() == 0) {
       delegate.abandon();
-      delegate = new AbandonedSpan(delegate.context().toBuilder().sampled(false).build());
+      // convert the span to no-op
+      delegate = tracer.toSpan(delegate.context().toBuilder().sampled(false).build());
     }
     return setTag(key, value.toString());
   }

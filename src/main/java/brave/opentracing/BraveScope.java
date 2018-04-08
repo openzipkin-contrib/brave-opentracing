@@ -1,5 +1,5 @@
 /**
- * Copyright 2016-2017 The OpenZipkin Authors
+ * Copyright 2016-2018 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -15,7 +15,6 @@ package brave.opentracing;
 
 import brave.Tracer.SpanInScope;
 import io.opentracing.Scope;
-import io.opentracing.Span;
 
 /**
  * {@link BraveScope} is a simple {@link Scope} implementation that wraps the corresponding
@@ -48,14 +47,14 @@ public final class BraveScope implements Scope {
       wrapped.finish();
     }
     scope.close();
-    source.deregisterSpan(wrapped.unwrap());
+    source.deregister(this);
   }
 
-  @Override public Span span() {
+  @Override public BraveSpan span() {
     return wrapped;
   }
 
   @Override public String toString() {
-    return "BraveActiveSpan{scope=" + scope + ", wrapped=" + wrapped + '}';
+    return "BraveScope{scope=" + scope + ", wrapped=" + wrapped + '}';
   }
 }

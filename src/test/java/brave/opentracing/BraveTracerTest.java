@@ -74,7 +74,8 @@ public class BraveTracerTest {
         .tag("lc", "codec")
         .start(1L);
 
-    io.opentracing.Span openTracingSpan = new BraveSpan(braveSpan, BraveSpan.EMPTY_ENDPOINT);
+    io.opentracing.Span openTracingSpan =
+        new BraveSpan(brave.tracer(), braveSpan, BraveSpan.EMPTY_ENDPOINT);
 
     openTracingSpan.log(2L, "pump fake");
     openTracingSpan.finish(3L);

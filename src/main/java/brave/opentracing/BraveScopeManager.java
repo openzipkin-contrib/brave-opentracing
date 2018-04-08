@@ -15,33 +15,58 @@ package brave.opentracing;
 
 import brave.Tracer;
 import brave.Tracing;
+import brave.propagation.CurrentTraceContext;
 import io.opentracing.Scope;
 import io.opentracing.ScopeManager;
 import io.opentracing.Span;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.ArrayDeque;
+import java.util.Deque;
 
-/**
- * Manages the active Brave span.
- *
- * Note that it is important to use the OpenTracing API exclusively to activate spans. If you fail
- * to do this, querying for the active span using the OpenTracing API will throw an exception.
- */
-final class BraveScopeManager implements ScopeManager {
-  private final Map<Long, BraveScope> activeSpans = new ConcurrentHashMap<>();
+/** This integrates with Brave's {@link CurrentTraceContext}. */
+public final class BraveScopeManager implements ScopeManager {
+  final ThreadLocal<Deque<BraveScope>> currentScopes = new ThreadLocal<Deque<BraveScope>>() {
+    @Override protected Deque<BraveScope> initialValue() {
+      return new ArrayDeque<>();
+    }
+  };
   private final Tracer tracer;
 
-  BraveScopeManager(Tracing brave4) {
-    tracer = brave4.tracer();
+  BraveScopeManager(Tracing tracing) {
+    tracer = tracing.tracer();
   }
 
+  /**
+   * This api's only purpose is to retrieve the {@link Scope#span() span}.
+   *
+   * @throws IllegalStateException if you attempt to close the resulting scope.
+   */
   @Override public Scope active() {
-    brave.Span span = tracer.currentSpan();
-    if (span == null) {
-      return null;
-    }
+    BraveSpan span = currentSpan();
+    if (span == null) return null;
+    return new Scope() {
+      @Override public void close() {
+        throw new IllegalStateException(
+            "Scope should not be closed via ScopeManager.active().close()");
+      }
 
-    return getOrEstablishActiveSpan(span, false);
+      @Override public Span span() {
+        return span;
+      }
+    };
+  }
+
+  /** Attempts to get a span from the current api, falling back to brave's native one */
+  BraveSpan currentSpan() {
+    BraveScope scope = currentScopes.get().pollFirst();
+    if (scope != null) {
+      return scope.span();
+    } else {
+      brave.Span braveSpan = tracer.currentSpan();
+      if (braveSpan != null) {
+        return new BraveSpan(tracer, braveSpan, BraveSpan.EMPTY_ENDPOINT);
+      }
+    }
+    return null;
   }
 
   @Override public BraveScope activate(Span span, boolean finishSpanOnClose) {
@@ -50,24 +75,21 @@ final class BraveScopeManager implements ScopeManager {
       throw new IllegalArgumentException(
           "Span must be an instance of brave.opentracing.BraveSpan, but was " + span.getClass());
     }
-
-    BraveSpan wrappedSpan = (BraveSpan) span;
-    brave.Span rawSpan = wrappedSpan.unwrap();
-    return getOrEstablishActiveSpan(rawSpan, finishSpanOnClose);
+    return newScope((BraveSpan) span, finishSpanOnClose);
   }
 
-  private BraveScope getOrEstablishActiveSpan(brave.Span span, boolean finishSpanOnClose) {
-    long spanId = span.context().spanId();
-    BraveScope braveScope = activeSpans.get(spanId);
-    if (braveScope == null) {
-      braveScope = new BraveScope(this, tracer.withSpanInScope(span),
-          new BraveSpan(span, BraveSpan.EMPTY_ENDPOINT), finishSpanOnClose);
-      activeSpans.put(spanId, braveScope);
-    }
-    return braveScope;
+  BraveScope newScope(BraveSpan span, boolean finishSpanOnClose) {
+    BraveScope result = new BraveScope(
+        this,
+        tracer.withSpanInScope(span.delegate),
+        span,
+        finishSpanOnClose
+    );
+    currentScopes.get().addFirst(result);
+    return result;
   }
 
-  void deregisterSpan(brave.Span span) {
-    activeSpans.remove(span.context().spanId());
+  void deregister(BraveScope span) {
+    currentScopes.get().remove(span);
   }
 }
