@@ -23,16 +23,21 @@ import java.util.Map.Entry;
 import zipkin2.Endpoint;
 
 /**
- * Holds the {@linkplain brave.Span} used by the underlying {@linkplain brave.Tracer}.\
+ * Holds the {@linkplain brave.Span} used by the underlying {@linkplain brave.Tracer}.
  *
  * <p>This type also includes hooks to integrate with the underlying {@linkplain brave.Tracer}. Ex
  * you can access the underlying span with {@link #unwrap}
+ *
+ * <p>Operations to add data to the span are ignored once {@link #finish()} or {@link #finish(long)}
+ * are called.
  */
 public final class BraveSpan implements Span {
   static final Endpoint EMPTY_ENDPOINT = Endpoint.newBuilder().build();
 
   private final Tracer tracer;
   private final Endpoint.Builder remoteEndpointBuilder;
+  /** Prevents late adding data to a span */
+  volatile boolean finishCalled;
   /** Reference invalidated when sampling priority set to 0, which can happen on any thread */
   volatile brave.Span delegate;
 
@@ -56,6 +61,8 @@ public final class BraveSpan implements Span {
   }
 
   @Override public BraveSpan setTag(String key, String value) {
+    if (finishCalled) return this;
+
     if (trySetPeer(remoteEndpointBuilder, key, value)) return this;
     if (trySetKind(delegate, key, value)) return this;
     delegate.tag(key, value);
@@ -63,6 +70,8 @@ public final class BraveSpan implements Span {
   }
 
   @Override public BraveSpan setTag(String key, boolean value) {
+    if (finishCalled) return this;
+
     if (Tags.ERROR.getKey().equals(key) && !value) return this;
     return setTag(key, Boolean.toString(value));
   }
@@ -74,6 +83,8 @@ public final class BraveSpan implements Span {
    * of this object. This is a best efforts means to handle late sampling decisions.
    */
   @Override public BraveSpan setTag(String key, Number value) {
+    if (finishCalled) return this;
+
     if (trySetPeer(remoteEndpointBuilder, key, value)) return this;
 
     // handle late sampling decision
@@ -86,22 +97,30 @@ public final class BraveSpan implements Span {
   }
 
   @Override public BraveSpan log(Map<String, ?> fields) {
+    if (finishCalled) return this;
+
     if (fields.isEmpty()) return this;
     return log(toAnnotation(fields));
   }
 
   @Override public BraveSpan log(long timestampMicroseconds, Map<String, ?> fields) {
+    if (finishCalled) return this;
+
     if (fields.isEmpty()) return this;
     // in real life, do like zipkin-go-opentracing: "key1=value1 key2=value2"
     return log(timestampMicroseconds, toAnnotation(fields));
   }
 
   @Override public BraveSpan log(String event) {
+    if (finishCalled) return this;
+
     delegate.annotate(event);
     return this;
   }
 
   @Override public BraveSpan log(long timestampMicroseconds, String event) {
+    if (finishCalled) return this;
+
     delegate.annotate(timestampMicroseconds, event);
     return this;
   }
@@ -118,16 +137,22 @@ public final class BraveSpan implements Span {
   }
 
   @Override public BraveSpan setOperationName(String operationName) {
+    if (finishCalled) return this;
+
     delegate.name(operationName);
     return this;
   }
 
   @Override public void finish() {
+    if (finishCalled) return;
+    finishCalled = true;
     trySetRemoteEndpoint();
     delegate.finish();
   }
 
   @Override public void finish(long finishMicros) {
+    if (finishCalled) return;
+    finishCalled = true;
     trySetRemoteEndpoint();
     delegate.finish(finishMicros);
   }
