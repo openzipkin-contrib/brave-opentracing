@@ -155,6 +155,20 @@ public class BraveSpanTest {
         .containsExactly(entry("hello", "monster"));
   }
 
+  @Test public void afterFinish_dataIgnored() {
+    Span span = tracer.buildSpan("foo").start();
+    span.finish();
+    spans.clear();
+
+    span.setOperationName("bar");
+    span.setTag("hello", "monster");
+    span.log("alarming");
+    span.finish();
+
+    assertThat(spans)
+        .isEmpty();
+  }
+
   @Test public void childSpanWhenParentIsExtracted() {
     Span spanClient = tracer.buildSpan("foo")
         .withTag(Tags.SPAN_KIND.getKey(), Tags.SPAN_KIND_CLIENT)
