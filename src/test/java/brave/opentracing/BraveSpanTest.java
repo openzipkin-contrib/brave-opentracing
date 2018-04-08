@@ -242,8 +242,8 @@ public class BraveSpanTest {
     assertThat(span.context().unwrap().sampled())
         .isFalse();
 
-    assertThat(span.delegate)
-        .isInstanceOf(AbandonedSpan.class);
+    assertThat(span.delegate.isNoop())
+        .isTrue();
 
     span.finish();
     assertThat(spans).isEmpty();

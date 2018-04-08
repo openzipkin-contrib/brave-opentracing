@@ -167,6 +167,6 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
       span.start();
     }
 
-    return new BraveSpan(span, remoteEndpoint.build());
+    return new BraveSpan(braveTracer, span, remoteEndpoint.build());
   }
 }

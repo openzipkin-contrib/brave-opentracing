@@ -14,6 +14,7 @@
 package brave.opentracing;
 
 import brave.Tracing;
+import brave.propagation.CurrentTraceContext;
 import brave.propagation.Propagation;
 import brave.propagation.TraceContext;
 import brave.propagation.TraceContext.Extractor;
@@ -39,7 +40,7 @@ import java.util.Set;
  *
  * Here's an example:
  * <pre>
- *     Tracer tracer = BraveTracer.wrap(brave4);
+ *     Tracer tracer = BraveTracer.wrap(tracing);
  *
  *     Span span = tracer.buildSpan("DoWork").start();
  *     tracer.inject(span.context());
@@ -56,17 +57,15 @@ import java.util.Set;
  */
 public final class BraveTracer implements Tracer {
   private final brave.Tracer brave4;
-  private final ScopeManager scopeManager;
+  private final BraveScopeManager scopeManager;
 
   /**
    * Returns an implementation of {@link Tracer} which delegates to the provided Brave {@link
-   * Tracing} component and uses an instance of {@link BraveScopeManager} for its {@link
-   * ScopeManager}.
+   * Tracing} component, which coordinates with Brave's {@link CurrentTraceContext} to implement
+   * {@linkplain ScopeManager}.
    */
   public static BraveTracer create(Tracing brave4) {
-    return newBuilder(brave4)
-        .activeScopeManager(new BraveScopeManager(brave4))
-        .build();
+    return newBuilder(brave4).build();
   }
 
   /**
@@ -75,33 +74,19 @@ public final class BraveTracer implements Tracer {
    * ScopeManager}.
    */
   public static Builder newBuilder(Tracing brave4) {
-    return new Builder(brave4).activeScopeManager(new BraveScopeManager(brave4));
+    return new Builder(brave4);
   }
 
   public static final class Builder {
-    Tracing brave4;
-    ScopeManager scopeManager;
+    Tracing tracing;
 
     Map<Format<TextMap>, Propagation<String>> formatToPropagation = new LinkedHashMap<>();
 
-    Builder(Tracing brave4) {
-      if (brave4 == null) throw new NullPointerException("brave tracing component == null");
-      this.brave4 = brave4;
-      formatToPropagation.put(Format.Builtin.HTTP_HEADERS, brave4.propagation());
-      formatToPropagation.put(Format.Builtin.TEXT_MAP, brave4.propagation());
-    }
-
-    /**
-     * By default, this builder uses BraveActiveSpanSource, which delegates management of the active
-     * span to Brave and acts as a simple wrapper. You can override with any other implementation,
-     * but beware that some implementations, e.g. opentracing-util's ThreadLocalActiveSpanSource,
-     * may not tell Brave about the active span. In these scenarios, you would need to use the
-     * OpenTracing APIs exclusively, as the Brave APIs would not function correctly, if at all.
-     */
-    public Builder activeScopeManager(ScopeManager scopeManager) {
-      if (scopeManager == null) throw new NullPointerException("scopeManager == null");
-      this.scopeManager = scopeManager;
-      return this;
+    Builder(Tracing tracing) {
+      if (tracing == null) throw new NullPointerException("brave tracing component == null");
+      this.tracing = tracing;
+      formatToPropagation.put(Format.Builtin.HTTP_HEADERS, tracing.propagation());
+      formatToPropagation.put(Format.Builtin.TEXT_MAP, tracing.propagation());
     }
 
     /**
@@ -137,15 +122,15 @@ public final class BraveTracer implements Tracer {
   final Map<Format<TextMap>, Extractor<TextMap>> formatToExtractor = new LinkedHashMap<>();
 
   BraveTracer(Builder b) {
-    brave4 = b.brave4.tracer();
-    scopeManager = b.scopeManager;
+    brave4 = b.tracing.tracer();
+    scopeManager = new BraveScopeManager(b.tracing);
     for (Map.Entry<Format<TextMap>, Propagation<String>> entry : b.formatToPropagation.entrySet()) {
       formatToInjector.put(entry.getKey(), entry.getValue().injector(TextMap::put));
       formatToExtractor.put(entry.getKey(), new TextMapExtractorAdaptor(entry.getValue()));
     }
   }
 
-  @Override public ScopeManager scopeManager() {
+  @Override public BraveScopeManager scopeManager() {
     return scopeManager;
   }
 
