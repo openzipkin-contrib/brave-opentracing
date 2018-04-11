@@ -23,7 +23,6 @@ import org.junit.After;
 import org.junit.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.failBecauseExceptionWasNotThrown;
 
 public class BraveScopeManagerTest {
 
@@ -74,15 +73,12 @@ public class BraveScopeManagerTest {
     }
   }
 
-  @Test public void scopeManagerActiveClose_unsupported() {
-    BraveSpan span = opentracing.buildSpan("spanA").start();
-    try (Scope scopeA = opentracing.scopeManager().activate(span, false)) {
+  @Test public void scopeManagerActiveClose() {
+    BraveSpan spanA = opentracing.buildSpan("spanA").start();
+    try (Scope scopeA = opentracing.scopeManager().activate(spanA, false)) {
       Scope scopeB = opentracing.scopeManager().active();
-      try {
-        scopeB.close();
-        failBecauseExceptionWasNotThrown(IllegalStateException.class);
-      } catch (IllegalStateException e) {
-      }
+
+      scopeB.close();
     }
   }
 

@@ -38,15 +38,14 @@ public final class BraveScopeManager implements ScopeManager {
   /**
    * This api's only purpose is to retrieve the {@link Scope#span() span}.
    *
-   * @throws IllegalStateException if you attempt to close the resulting scope.
+   * Calling {@link Scope#close() close } on the returned scope has no effect on the active span
    */
   @Override public Scope active() {
     BraveSpan span = currentSpan();
     if (span == null) return null;
     return new Scope() {
       @Override public void close() {
-        throw new IllegalStateException(
-            "Scope should not be closed via ScopeManager.active().close()");
+        // no-op
       }
 
       @Override public Span span() {
