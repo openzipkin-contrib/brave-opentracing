@@ -56,7 +56,7 @@ public final class BraveScopeManager implements ScopeManager {
 
   /** Attempts to get a span from the current api, falling back to brave's native one */
   BraveSpan currentSpan() {
-    BraveScope scope = currentScopes.get().pollFirst();
+    BraveScope scope = currentScopes.get().peekFirst();
     if (scope != null) {
       return scope.span();
     } else {
