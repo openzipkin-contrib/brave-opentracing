@@ -40,6 +40,9 @@ public class BraveScopeManagerTest {
     try (Scope scopeA = opentracing.scopeManager().activate(span, false)) {
       assertThat(opentracing.scopeManager().active().span())
           .isEqualTo(span);
+      //Call again to ensure the ThreadLocal cache works
+      assertThat(opentracing.scopeManager().active().span())
+          .isEqualTo(span);
     }
 
     assertThat(opentracing.scopeManager().active())
