@@ -21,9 +21,14 @@ import io.opentracing.ScopeManager;
 import io.opentracing.Span;
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /** This integrates with Brave's {@link CurrentTraceContext}. */
 public final class BraveScopeManager implements ScopeManager {
+
+  private static final Logger logger = Logger.getLogger(BraveScopeManager.class.getName());
+
   final ThreadLocal<Deque<BraveScope>> currentScopes = new ThreadLocal<Deque<BraveScope>>() {
     @Override protected Deque<BraveScope> initialValue() {
       return new ArrayDeque<>();
@@ -82,13 +87,63 @@ public final class BraveScopeManager implements ScopeManager {
         this,
         tracer.withSpanInScope(span.delegate),
         span,
-        finishSpanOnClose
+        finishSpanOnClose,
+        getTracker(span)
     );
     currentScopes.get().addFirst(result);
     return result;
   }
 
-  void deregister(BraveScope span) {
-    currentScopes.get().remove(span);
+  boolean deregister(BraveScope scope) {
+    Deque<BraveScope> scopeStack = currentScopes.get();
+    BraveScope currentScope = scopeStack.peekFirst();
+    if (scope.equals(currentScope)) {
+      scopeStack.pollFirst();
+      return true;
+    }
+
+    //scope mismatch
+    if (currentScope != null) {
+      scopeStack.remove(scope);//try our best to remove something to avoid memory leak
+    }
+
+    if (scope.tracker == null) {
+      return false; // only do further logging against tracker exist.
+    }
+
+    if (Thread.currentThread().getId() != scope.tracker.threadId) {
+      logger.log(Level.WARNING,
+          "Closing scope in wrong thread: " + Thread.currentThread().getName(),
+          scope.tracker.caller);
+      return false;
+    }
+
+    //scope mismatch
+    if (currentScope != null && currentScope.tracker != null) {
+      logger.log(Level.WARNING, "Child scope not closed when closing: " + scope,
+          currentScope.tracker.caller);
+    }
+
+    return false;
+  }
+
+  private ScopeCloseTracker getTracker(BraveSpan span) {
+    if (logger.isLoggable(Level.FINE)) {
+      return new ScopeCloseTracker(span);
+    }
+    return null;
+  }
+
+  //This object is expensive
+  static class ScopeCloseTracker {
+
+    final long threadId;
+    final Throwable caller;
+
+    ScopeCloseTracker(BraveSpan span) {
+      this.threadId = Thread.currentThread().getId();
+      this.caller = new Error(String.format("Thread %s opened BraveScope for %s here:",
+          Thread.currentThread().getName(), span));
+    }
   }
 }

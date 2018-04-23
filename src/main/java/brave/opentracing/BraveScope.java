@@ -15,6 +15,7 @@ package brave.opentracing;
 
 import brave.Tracer.SpanInScope;
 import io.opentracing.Scope;
+import brave.opentracing.BraveScopeManager.ScopeCloseTracker;
 
 /**
  * {@link BraveScope} is a simple {@link Scope} implementation that wraps the corresponding
@@ -28,18 +29,24 @@ public final class BraveScope implements Scope {
   private final SpanInScope scope;
   private final BraveSpan wrapped;
   private final boolean finishSpanOnClose;
+  final ScopeCloseTracker tracker;
+  boolean closedCalled;
 
   /**
-   * @param source the BraveActiveSpanSource that created this BraveActiveSpan
-   * @param scope a SpanInScope to be closed upon deactivation of this ActiveSpan
+   * @param source the BraveScopeManager that created this BraveScope
+   * @param scope a SpanInScope to be closed upon close of this BraveScope
    * @param wrapped the wrapped BraveSpan to which we will delegate all span operations
+   * @param finishSpanOnClose whether to finish span when closing this BraveScope
+   * @param tracker an tracker object which can help user find the root cause when improperly closing this BraveScope.
    */
   BraveScope(BraveScopeManager source, SpanInScope scope, BraveSpan wrapped,
-      boolean finishSpanOnClose) {
+      boolean finishSpanOnClose,
+      ScopeCloseTracker tracker) {
     this.source = source;
     this.scope = scope;
     this.wrapped = wrapped;
     this.finishSpanOnClose = finishSpanOnClose;
+    this.tracker = tracker;
   }
 
   @Override public void close() {
@@ -47,7 +54,9 @@ public final class BraveScope implements Scope {
       wrapped.finish();
     }
     scope.close();
-    source.deregister(this);
+    if (!closedCalled) {
+      closedCalled = source.deregister(this);
+    }
   }
 
   @Override public BraveSpan span() {

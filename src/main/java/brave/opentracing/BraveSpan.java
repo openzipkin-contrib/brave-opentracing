@@ -157,6 +157,10 @@ public final class BraveSpan implements Span {
     delegate.finish(finishMicros);
   }
 
+  @Override public String toString() {
+    return "BraveSpan{delegate=" + delegate + '}';
+  }
+
   /**
    * Converts a map to a string of form: "key1=value1 key2=value2"
    */
