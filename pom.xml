@@ -24,7 +24,7 @@
   <description>Zipkin OpenTracing Brave bridge</description>
   <inceptionYear>2016</inceptionYear>
 
-  <version>0.30.3-SNAPSHOT</version>
+  <version>0.30.3</version>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -61,7 +61,7 @@
     <connection>scm:git:https://github.com/openzipkin-contrib/brave-opentracing.git</connection>
     <developerConnection>scm:git:https://github.com/openzipkin-contrib/brave-opentracing.git
     </developerConnection>
-    <tag>HEAD</tag>
+    <tag>0.30.3</tag>
   </scm>
 
   <!-- Developer section is needed for Maven Central, but doesn't need to include each person -->
