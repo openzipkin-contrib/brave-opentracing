@@ -34,7 +34,7 @@
     <main.java.version>1.7</main.java.version>
     <main.signature.artifact>java17</main.signature.artifact>
 
-    <brave.version>4.19.2</brave.version>
+    <brave.version>4.19.3</brave.version>
 
     <!-- default bytecode version for src/test -->
     <maven.compiler.source>1.8</maven.compiler.source>
@@ -142,11 +142,11 @@
 
   <build>
     <plugins>
-      <!-- mvn -N io.takari:maven:wrapper -Dmaven=3.5.2 -->
+      <!-- mvn -N io.takari:maven:wrapper -Dmaven=3.5.3 -->
       <plugin>
         <groupId>io.takari</groupId>
         <artifactId>maven</artifactId>
-        <version>0.5.0</version>
+        <version>0.6.0</version>
       </plugin>
       <!-- Ensure main source tree compiles to Java 8 bytecode.    -->
       <plugin>
@@ -154,6 +154,8 @@
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.7.0</version>
         <configuration>
+          <!-- or die! com.sun.tools.javac.api.JavacTool -->
+          <fork>true</fork>
           <source>${maven.compiler.source}</source>
           <target>${maven.compiler.target}</target>
         </configuration>

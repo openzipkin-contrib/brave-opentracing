@@ -16,6 +16,8 @@ package brave.opentracing;
 import brave.Tracing;
 import brave.propagation.CurrentTraceContext;
 import brave.propagation.Propagation;
+import brave.propagation.Propagation.Getter;
+import brave.propagation.Propagation.Setter;
 import brave.propagation.TraceContext;
 import brave.propagation.TraceContext.Extractor;
 import brave.propagation.TraceContext.Injector;
@@ -56,6 +58,7 @@ import java.util.Set;
  * @see Propagation
  */
 public final class BraveTracer implements Tracer {
+
   private final brave.Tracer brave4;
   private final BraveScopeManager scopeManager;
 
@@ -125,7 +128,7 @@ public final class BraveTracer implements Tracer {
     brave4 = b.tracing.tracer();
     scopeManager = new BraveScopeManager(b.tracing);
     for (Map.Entry<Format<TextMap>, Propagation<String>> entry : b.formatToPropagation.entrySet()) {
-      formatToInjector.put(entry.getKey(), entry.getValue().injector(TextMap::put));
+      formatToInjector.put(entry.getKey(), entry.getValue().injector(TEXT_MAP_SETTER));
       formatToExtractor.put(entry.getKey(), new TextMapExtractorAdaptor(entry.getValue()));
     }
   }
@@ -168,6 +171,27 @@ public final class BraveTracer implements Tracer {
     return BraveSpanContext.create(extractionResult);
   }
 
+  static final Setter<TextMap, String> TEXT_MAP_SETTER = new Setter<TextMap, String>(){
+    @Override public void put(TextMap carrier, String key, String value) {
+      carrier.put(key, value);
+    }
+
+    @Override public String toString() {
+      return "TextMap::put";
+    }
+  };
+
+  static final Getter<Map<String, String>, String> LC_MAP_GETTER =
+      new Getter<Map<String, String>, String>() {
+        @Override public String get(Map<String, String> carrier, String key) {
+          return carrier.get(key.toLowerCase(Locale.ROOT));
+        }
+
+        @Override public String toString() {
+          return "Map::getLowerCase";
+        }
+      };
+
   /**
    * Eventhough TextMap is named like Map, it doesn't have a retrieve-by-key method Lookups will be
    * case insensitive
@@ -178,7 +202,7 @@ public final class BraveTracer implements Tracer {
 
     TextMapExtractorAdaptor(Propagation<String> propagation) {
       fields = lowercaseSet(propagation.keys());
-      delegate = propagation.extractor((m, k) -> m.get(k.toLowerCase(Locale.ROOT)));
+      delegate = propagation.extractor(LC_MAP_GETTER);
     }
 
     @Override public TraceContextOrSamplingFlags extract(TextMap entries) {
