@@ -37,32 +37,20 @@ public final class BraveScopeManager implements ScopeManager {
 
   /**
    * This api's only purpose is to retrieve the {@link Scope#span() span}.
-   *
-   * Calling {@link Scope#close() close } on the returned scope has no effect on the active span
    */
   @Override public Scope active() {
-    BraveSpan span = currentSpan();
-    if (span == null) return null;
-    return new Scope() {
-      @Override public void close() {
-        // no-op
-      }
-
-      @Override public Span span() {
-        return span;
-      }
-    };
+    return currentSpan();
   }
 
   /** Attempts to get a span from the current api, falling back to brave's native one */
-  BraveSpan currentSpan() {
+  BraveScope currentSpan() {
     BraveScope scope = currentScopes.get().peekFirst();
     if (scope != null) {
-      return scope.span();
+      return scope;
     } else {
       brave.Span braveSpan = tracer.currentSpan();
       if (braveSpan != null) {
-        return new BraveSpan(tracer, braveSpan, BraveSpan.EMPTY_ENDPOINT);
+        return newScope(new BraveSpan(tracer, braveSpan, BraveSpan.EMPTY_ENDPOINT), false);
       }
     }
     return null;
