@@ -85,6 +85,20 @@ public class BraveScopeManagerTest {
     }
   }
 
+  @Test public void closeScopeFromScopeManager() {
+    Scope scopeA = opentracing.buildSpan("spanA").startActive(false);
+    Scope scopeB = opentracing.scopeManager().active();
+    assertThat(scopeB).isEqualTo(scopeA);
+    assertThat(brave.currentTraceContext().get())
+        .isEqualTo(((BraveSpan)opentracing.scopeManager().active().span()).unwrap().context());
+
+    scopeA.close();
+    assertThat(brave.currentTraceContext().get())
+        .isEqualTo(null);
+    assertThat(opentracing.scopeManager().active())
+        .isEqualTo(null);
+  }
+
   @After public void clear() {
     Tracing current = Tracing.current();
     if (current != null) current.close();
