@@ -34,7 +34,7 @@
     <main.java.version>1.7</main.java.version>
     <main.signature.artifact>java17</main.signature.artifact>
 
-    <brave.version>5.0.0</brave.version>
+    <brave.version>5.1.0</brave.version>
 
     <!-- default bytecode version for src/test -->
     <maven.compiler.source>1.8</maven.compiler.source>
@@ -99,14 +99,6 @@
       <groupId>io.zipkin.brave</groupId>
       <artifactId>brave</artifactId>
       <version>${brave.version}</version>
-    </dependency>
-
-    <!-- Unused at runtime, allows compilation of Brave.remoteEndpoint() overloaded w/v1 types -->
-    <dependency>
-      <groupId>io.zipkin.java</groupId>
-      <artifactId>zipkin</artifactId>
-      <version>2.4.3</version>
-      <optional>true</optional>
     </dependency>
 
     <dependency>
