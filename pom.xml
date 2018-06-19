@@ -34,7 +34,7 @@
     <main.java.version>1.7</main.java.version>
     <main.signature.artifact>java17</main.signature.artifact>
 
-    <brave.version>5.1.0</brave.version>
+    <brave.version>5.1.1</brave.version>
 
     <!-- default bytecode version for src/test -->
     <maven.compiler.source>1.8</maven.compiler.source>
@@ -59,8 +59,7 @@
   <scm>
     <url>https://github.com/openzipkin-contrib/brave-opentracing</url>
     <connection>scm:git:https://github.com/openzipkin-contrib/brave-opentracing.git</connection>
-    <developerConnection>scm:git:https://github.com/openzipkin-contrib/brave-opentracing.git
-    </developerConnection>
+    <developerConnection>scm:git:https://github.com/openzipkin-contrib/brave-opentracing.git</developerConnection>
     <tag>HEAD</tag>
   </scm>
 
@@ -89,6 +88,18 @@
     <url>https://github.com/openzipkin-contrib/brave-opentracing/issues</url>
   </issueManagement>
 
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>io.zipkin.brave</groupId>
+        <artifactId>brave-bom</artifactId>
+        <version>${brave.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
   <dependencies>
     <dependency>
       <groupId>io.opentracing</groupId>
@@ -98,7 +109,6 @@
     <dependency>
       <groupId>io.zipkin.brave</groupId>
       <artifactId>brave</artifactId>
-      <version>${brave.version}</version>
     </dependency>
 
     <dependency>
@@ -110,7 +120,7 @@
     <dependency>
       <groupId>io.zipkin.brave</groupId>
       <artifactId>brave-tests</artifactId>
-      <version>${brave.version}</version>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.mockito</groupId>
