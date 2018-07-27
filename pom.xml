@@ -30,11 +30,11 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.build.resourceEncoding>UTF-8</project.build.resourceEncoding>
 
-    <!-- default bytecode version for src/main -->
-    <main.java.version>1.7</main.java.version>
-    <main.signature.artifact>java17</main.signature.artifact>
-
     <brave.version>5.1.4</brave.version>
+
+    <!-- default bytecode version for src/main -->
+    <main.java.version>1.6</main.java.version>
+    <main.signature.artifact>java16</main.signature.artifact>
 
     <!-- default bytecode version for src/test -->
     <maven.compiler.source>1.8</maven.compiler.source>
@@ -150,16 +150,15 @@
         <artifactId>maven</artifactId>
         <version>0.6.1</version>
       </plugin>
-      <!-- Ensure main source tree compiles to Java 8 bytecode.    -->
       <plugin>
-        <inherited>true</inherited>
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.7.0</version>
         <configuration>
+          <!-- Retrolambda will rewrite lambdas as Java 6 bytecode -->
+          <source>1.8</source>
+          <target>1.8</target>
           <!-- or die! com.sun.tools.javac.api.JavacTool -->
           <fork>true</fork>
-          <source>${maven.compiler.source}</source>
-          <target>${maven.compiler.target}</target>
         </configuration>
         <executions>
           <execution>
@@ -168,12 +167,14 @@
             <goals>
               <goal>compile</goal>
             </goals>
+            <!-- only use errorprone on main source tree -->
             <configuration>
-              <source>${maven.compiler.source}</source>
-              <target>${maven.compiler.target}</target>
               <compilerId>javac-with-errorprone</compilerId>
               <forceJavacCompilerUse>true</forceJavacCompilerUse>
               <showWarnings>true</showWarnings>
+              <compilerArgs>
+                <arg>-XepDisableWarningsInGeneratedCode</arg>
+              </compilerArgs>
             </configuration>
           </execution>
         </executions>
@@ -217,7 +218,7 @@
         <configuration>
           <signature>
             <groupId>org.codehaus.mojo.signature</groupId>
-            <artifactId>java18</artifactId>
+            <artifactId>${main.signature.artifact}</artifactId>
             <version>1.0</version>
           </signature>
         </configuration>

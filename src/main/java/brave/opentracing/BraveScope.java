@@ -55,6 +55,6 @@ public final class BraveScope implements Scope {
   }
 
   @Override public String toString() {
-    return "BraveScope{scope=" + scope + ", wrapped=" + wrapped + '}';
+    return "BraveScope{scope=" + scope + ", wrapped=" + wrapped.delegate + '}';
   }
 }
