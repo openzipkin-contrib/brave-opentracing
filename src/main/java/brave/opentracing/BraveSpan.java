@@ -143,14 +143,14 @@ public final class BraveSpan implements Span {
   @Override public void finish() {
     if (finishCalled) return;
     finishCalled = true;
-    trySetRemoteIp();
+    trySetRemoteIpAndPort();
     delegate.finish();
   }
 
   @Override public void finish(long finishMicros) {
     if (finishCalled) return;
     finishCalled = true;
-    trySetRemoteIp();
+    trySetRemoteIpAndPort();
     delegate.finish(finishMicros);
   }
 
@@ -223,7 +223,7 @@ public final class BraveSpan implements Span {
     return true;
   }
 
-  void trySetRemoteIp() {
+  void trySetRemoteIpAndPort() {
     if (remoteIpV4 != null) delegate.remoteIpAndPort(remoteIpV4, remotePort);
     if (remoteIpV6 != null) delegate.remoteIpAndPort(remoteIpV6, remotePort);
   }
