@@ -274,7 +274,6 @@ public class BraveSpanTest {
     assertThat(spans.get(0).remoteEndpoint())
         .isEqualTo(Endpoint.newBuilder()
             .serviceName("jupiter")
-            .ip("1.2.3.4")
             .ip("2001:db8::c001")
             .port(8080).build());
   }
@@ -291,7 +290,6 @@ public class BraveSpanTest {
     assertThat(spans.get(0).remoteEndpoint())
         .isEqualTo(Endpoint.newBuilder()
             .serviceName("jupiter")
-            .ip("1.2.3.4")
             .ip("2001:db8::c001")
             .port(8080).build());
   }

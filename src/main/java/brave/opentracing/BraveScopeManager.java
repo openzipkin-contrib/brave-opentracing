@@ -62,7 +62,7 @@ public final class BraveScopeManager implements ScopeManager {
     } else {
       brave.Span braveSpan = tracer.currentSpan();
       if (braveSpan != null) {
-        return new BraveSpan(tracer, braveSpan, BraveSpan.EMPTY_ENDPOINT);
+        return new BraveSpan(tracer, braveSpan);
       }
     }
     return null;

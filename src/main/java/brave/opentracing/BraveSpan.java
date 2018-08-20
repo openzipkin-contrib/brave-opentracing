@@ -20,7 +20,6 @@ import io.opentracing.tag.Tags;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
-import zipkin2.Endpoint;
 
 /**
  * Holds the {@linkplain brave.Span} used by the underlying {@linkplain brave.Tracer}.
@@ -28,25 +27,23 @@ import zipkin2.Endpoint;
  * <p>This type also includes hooks to integrate with the underlying {@linkplain brave.Tracer}. Ex
  * you can access the underlying span with {@link #unwrap}
  *
- * <p>Operations to add data to the span are ignored once {@link #finish()} or {@link #finish(long)}
- * are called.
+ * <p>Operations to add data to the span are ignored once {@link #finish()} or {@link
+ * #finish(long)} are called.
  */
 public final class BraveSpan implements Span {
-  static final Endpoint EMPTY_ENDPOINT = Endpoint.newBuilder().build();
-
   private final Tracer tracer;
-  private final Endpoint.Builder remoteEndpointBuilder;
   /** Prevents late adding data to a span */
   volatile boolean finishCalled;
   /** Reference invalidated when sampling priority set to 0, which can happen on any thread */
   volatile brave.Span delegate;
+  volatile String remoteIpV4, remoteIpV6;
+  volatile int remotePort;
 
   // tracer is only needed because the sampling.priority flag is used as a sampling api
-  BraveSpan(brave.Tracer tracer, brave.Span delegate, Endpoint remoteEndpoint) {
+  BraveSpan(brave.Tracer tracer, brave.Span delegate) {
     this.tracer = tracer;
     if (delegate == null) throw new NullPointerException("delegate == null");
     this.delegate = delegate;
-    this.remoteEndpointBuilder = remoteEndpoint.toBuilder(); // so that the builder can be reused
   }
 
   /**
@@ -63,8 +60,8 @@ public final class BraveSpan implements Span {
   @Override public BraveSpan setTag(String key, String value) {
     if (finishCalled) return this;
 
-    if (trySetPeer(remoteEndpointBuilder, key, value)) return this;
-    if (trySetKind(delegate, key, value)) return this;
+    if (trySetPeer(delegate, key, value)) return this;
+    if (trySetKind(key, value)) return this;
     delegate.tag(key, value);
     return this;
   }
@@ -79,13 +76,13 @@ public final class BraveSpan implements Span {
   /**
    * <em>Note:</em>If the key is {@linkplain Tags#SAMPLING_PRIORITY} and the value is zero, the
    * current span will be abandoned and future references to the {@link #context()} will be
-   * unsampled. This does not affect the active span, nor does it affect any equivalent instances
-   * of this object. This is a best efforts means to handle late sampling decisions.
+   * unsampled. This does not affect the active span, nor does it affect any equivalent instances of
+   * this object. This is a best efforts means to handle late sampling decisions.
    */
   @Override public BraveSpan setTag(String key, Number value) {
     if (finishCalled) return this;
 
-    if (trySetPeer(remoteEndpointBuilder, key, value)) return this;
+    if (trySetPeer(key, value)) return this;
 
     // handle late sampling decision
     if (Tags.SAMPLING_PRIORITY.getKey().equals(key) && value.intValue() == 0) {
@@ -146,14 +143,14 @@ public final class BraveSpan implements Span {
   @Override public void finish() {
     if (finishCalled) return;
     finishCalled = true;
-    trySetRemoteEndpoint();
+    trySetRemoteIpAndPort();
     delegate.finish();
   }
 
   @Override public void finish(long finishMicros) {
     if (finishCalled) return;
     finishCalled = true;
-    trySetRemoteEndpoint();
+    trySetRemoteIpAndPort();
     delegate.finish(finishMicros);
   }
 
@@ -180,57 +177,54 @@ public final class BraveSpan implements Span {
     return result.toString();
   }
 
-  void trySetRemoteEndpoint() {
-    Endpoint remoteEndpoint = remoteEndpointBuilder.build();
-    if (!remoteEndpoint.equals(EMPTY_ENDPOINT)) {
-      delegate.remoteEndpoint(remoteEndpoint);
-    }
-  }
-
-  static boolean trySetKind(brave.Span span, String key, String value) {
+  boolean trySetKind(String key, String value) {
     if (!Tags.SPAN_KIND.getKey().equals(key)) return false;
 
     if (Tags.SPAN_KIND_CLIENT.equals(value)) {
-      span.kind(brave.Span.Kind.CLIENT);
+      delegate.kind(brave.Span.Kind.CLIENT);
     } else if (Tags.SPAN_KIND_SERVER.equals(value)) {
-      span.kind(brave.Span.Kind.SERVER);
-    } else if (Tags.SPAN_KIND_CLIENT.equals(value)) {
-      span.kind(brave.Span.Kind.CLIENT);
+      delegate.kind(brave.Span.Kind.SERVER);
     } else if (Tags.SPAN_KIND_PRODUCER.equals(value)) {
-      span.kind(brave.Span.Kind.PRODUCER);
+      delegate.kind(brave.Span.Kind.PRODUCER);
     } else if (Tags.SPAN_KIND_CONSUMER.equals(value)) {
-      span.kind(brave.Span.Kind.CONSUMER);
+      delegate.kind(brave.Span.Kind.CONSUMER);
     } else {
       return false;
     }
     return true;
   }
 
-  static boolean trySetPeer(Endpoint.Builder remoteEndpoint, String key, String value) {
+  boolean trySetPeer(brave.Span span, String key, String value) {
     if (Tags.PEER_SERVICE.getKey().equals(key)) {
-      remoteEndpoint.serviceName(value);
-    } else if (Tags.PEER_HOST_IPV4.getKey().equals(key) ||
-        Tags.PEER_HOST_IPV6.getKey().equals(key)) {
-      remoteEndpoint.ip(value);
+      span.remoteServiceName(value);
+    } else if (Tags.PEER_HOST_IPV4.getKey().equals(key)) {
+      remoteIpV4 = value;
+    } else if (Tags.PEER_HOST_IPV6.getKey().equals(key)) {
+      remoteIpV6 = value;
     } else {
       return false;
     }
     return true;
   }
 
-  static boolean trySetPeer(Endpoint.Builder remoteEndpoint, String key, Number value) {
+  boolean trySetPeer(String key, Number value) {
     if (Tags.PEER_HOST_IPV4.getKey().equals(key)) {
       int ipv4 = value.intValue();
-      remoteEndpoint.ip(new StringBuilder()
+      remoteIpV4 = new StringBuilder()
           .append(ipv4 >> 24 & 0xff).append('.')
           .append(ipv4 >> 16 & 0xff).append('.')
           .append(ipv4 >> 8 & 0xff).append('.')
-          .append(ipv4 & 0xff).toString());
+          .append(ipv4 & 0xff).toString();
     } else if (Tags.PEER_PORT.getKey().equals(key)) {
-      remoteEndpoint.port(value.intValue());
+      remotePort = value.intValue();
     } else {
       return false;
     }
     return true;
+  }
+
+  void trySetRemoteIpAndPort() {
+    if (remoteIpV4 != null) delegate.remoteIpAndPort(remoteIpV4, remotePort);
+    if (remoteIpV6 != null) delegate.remoteIpAndPort(remoteIpV6, remotePort);
   }
 }

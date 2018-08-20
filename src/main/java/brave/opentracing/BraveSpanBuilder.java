@@ -23,10 +23,6 @@ import io.opentracing.Tracer;
 import io.opentracing.tag.Tags;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import zipkin2.Endpoint;
-
-import static brave.opentracing.BraveSpan.trySetKind;
-import static brave.opentracing.BraveSpan.trySetPeer;
 
 /**
  * Uses by the underlying {@linkplain brave.Tracer} to create a {@linkplain BraveSpan} wrapped
@@ -43,10 +39,10 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
   private final Tracer tracer;
   private final brave.Tracer braveTracer;
   private final Map<String, String> tags = new LinkedHashMap<>();
-  private final Endpoint.Builder remoteEndpoint = Endpoint.newBuilder();
 
   private String operationName;
   private long timestamp;
+  private int remotePort;
   private BraveSpanContext reference;
   private boolean ignoreActiveSpan = false;
 
@@ -75,7 +71,6 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
   }
 
   @Override public BraveSpanBuilder withTag(String key, String value) {
-    if (trySetPeer(remoteEndpoint, key, value)) return this;
     tags.put(key, value);
     return this;
   }
@@ -86,7 +81,10 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
   }
 
   @Override public BraveSpanBuilder withTag(String key, Number value) {
-    if (trySetPeer(remoteEndpoint, key, value)) return this;
+    if (Tags.PEER_PORT.getKey().equals(key)) {
+      remotePort = value.intValue();
+      return this;
+    }
     return withTag(key, value.toString());
   }
 
@@ -155,10 +153,10 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
     }
 
     if (operationName != null) span.name(operationName);
+    BraveSpan result = new BraveSpan(braveTracer, span);
+    result.remotePort = remotePort;
     for (Map.Entry<String, String> tag : tags.entrySet()) {
-      String key = tag.getKey(), value = tag.getValue();
-      if (trySetKind(span, key, value)) continue;
-      span.tag(key, value);
+      result.setTag(tag.getKey(), tag.getValue());
     }
 
     if (timestamp != 0) {
@@ -167,6 +165,6 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
       span.start();
     }
 
-    return new BraveSpan(braveTracer, span, remoteEndpoint.build());
+    return result;
   }
 }
