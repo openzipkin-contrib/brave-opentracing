@@ -6,7 +6,7 @@ This library is a Java bridge between the [Brave/Zipkin Api](https://github.com/
 
 ## Required Reading
 
-In order to understand OpenTracing Api, one must first be familiar with the [OpenTracing project](http://opentracing.io) and [terminology](http://opentracing.io/spec/) more generally.
+In order to understand OpenTracing Api, one must first be familiar with the [OpenTracing project](http://opentracing.io) and [terminology](https://github.com/opentracing/specification/blob/master/specification.md) more generally.
 
 To understand how Zipkin and Brave work, you can look at [Zipkin Architecture](http://zipkin.io/pages/architecture.html) and [Brave Api](https://github.com/openzipkin/brave/tree/master/brave#brave-api-v4) documentation.
 
