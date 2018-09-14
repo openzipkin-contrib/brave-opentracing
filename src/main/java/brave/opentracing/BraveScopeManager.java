@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2016-2018 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
@@ -24,6 +24,11 @@ import java.util.Deque;
 
 /** This integrates with Brave's {@link CurrentTraceContext}. */
 public final class BraveScopeManager implements ScopeManager {
+  // This probably needs to be redesigned to stash the OpenTracing span in brave's .extra()
+  // We wouldn't have to do this if it weren't a requirement to return the same instance...
+  //
+  // When scopes are leaked this thread local will prevent this type from being unloaded. This can
+  // cause problems in redeployment scenarios. https://github.com/openzipkin/brave/issues/785
   final ThreadLocal<Deque<BraveScope>> currentScopes = new ThreadLocal<Deque<BraveScope>>() {
     @Override protected Deque<BraveScope> initialValue() {
       return new ArrayDeque<>();

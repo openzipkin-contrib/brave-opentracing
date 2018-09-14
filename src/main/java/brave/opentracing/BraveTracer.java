@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2016-2018 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
@@ -15,6 +15,7 @@ package brave.opentracing;
 
 import brave.Tracing;
 import brave.propagation.CurrentTraceContext;
+import brave.propagation.ExtraFieldPropagation;
 import brave.propagation.Propagation;
 import brave.propagation.Propagation.Getter;
 import brave.propagation.Propagation.Setter;
@@ -193,24 +194,29 @@ public final class BraveTracer implements Tracer {
       };
 
   /**
-   * Eventhough TextMap is named like Map, it doesn't have a retrieve-by-key method Lookups will be
-   * case insensitive
+   * Eventhough TextMap is named like Map, it doesn't have a retrieve-by-key method.
+   *
+   * <p>See https://github.com/opentracing/opentracing-java/issues/305
    */
   static final class TextMapExtractorAdaptor implements Extractor<TextMap> {
-    final Set<String> fields;
+    final Set<String> allPropagationKeys;
     final Extractor<Map<String, String>> delegate;
 
     TextMapExtractorAdaptor(Propagation<String> propagation) {
-      fields = lowercaseSet(propagation.keys());
+      allPropagationKeys = lowercaseSet(propagation.keys());
+      if (propagation instanceof ExtraFieldPropagation) {
+        allPropagationKeys.addAll(((ExtraFieldPropagation<String>) propagation).extraKeys());
+      }
       delegate = propagation.extractor(LC_MAP_GETTER);
     }
 
+    /** Performs case-insensitive lookup */
     @Override public TraceContextOrSamplingFlags extract(TextMap entries) {
       Map<String, String> cache = new LinkedHashMap<>();
       for (Iterator<Map.Entry<String, String>> it = entries.iterator(); it.hasNext(); ) {
         Map.Entry<String, String> next = it.next();
         String inputKey = next.getKey().toLowerCase(Locale.ROOT);
-        if (fields.contains(inputKey)) {
+        if (allPropagationKeys.contains(inputKey)) {
           cache.put(inputKey, next.getValue());
         }
       }
@@ -221,7 +227,7 @@ public final class BraveTracer implements Tracer {
   static Set<String> lowercaseSet(List<String> fields) {
     Set<String> lcSet = new LinkedHashSet<>();
     for (String f : fields) {
-      lcSet.add(f.toLowerCase());
+      lcSet.add(f.toLowerCase(Locale.ROOT));
     }
     return lcSet;
   }
