@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2016-2018 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
@@ -16,7 +16,8 @@ package brave.opentracing;
 import brave.Tracing;
 import brave.propagation.B3Propagation;
 import brave.propagation.ExtraFieldPropagation;
-import brave.propagation.StrictCurrentTraceContext;
+import brave.propagation.StrictScopeDecorator;
+import brave.propagation.ThreadLocalCurrentTraceContext;
 import com.tngtech.java.junit.dataprovider.DataProvider;
 import com.tngtech.java.junit.dataprovider.DataProviderRunner;
 import com.tngtech.java.junit.dataprovider.UseDataProvider;
@@ -47,7 +48,9 @@ public class BraveSpanTest {
   BraveTracer tracer = BraveTracer.create(
       Tracing.newBuilder()
           .localServiceName("tracer")
-          .currentTraceContext(new StrictCurrentTraceContext())
+          .currentTraceContext(ThreadLocalCurrentTraceContext.newBuilder()
+              .addScopeDecorator(StrictScopeDecorator.create())
+              .build())
           .propagationFactory(ExtraFieldPropagation.newFactory(B3Propagation.FACTORY, "client-id"))
           .spanReporter(spans::add).build()
   );
