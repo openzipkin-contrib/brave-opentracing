@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
 
-    Copyright 2016-2018 The OpenZipkin Authors
+    Copyright 2016-2019 The OpenZipkin Authors
 
     Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
     in compliance with the License. You may obtain a copy of the License at
@@ -30,7 +30,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.build.resourceEncoding>UTF-8</project.build.resourceEncoding>
 
-    <brave.version>5.6.0</brave.version>
+    <brave.version>5.6.1</brave.version>
 
     <!-- default bytecode version for src/main -->
     <main.java.version>1.6</main.java.version>
@@ -128,7 +128,7 @@
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
-      <version>2.23.0</version>
+      <version>2.23.4</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -171,7 +171,7 @@
       <plugin>
         <groupId>net.orfjackal.retrolambda</groupId>
         <artifactId>retrolambda-maven-plugin</artifactId>
-        <version>2.5.5</version>
+        <version>2.5.6</version>
         <executions>
           <execution>
             <goals>
@@ -207,19 +207,15 @@
         </executions>
       </plugin>
 
-      <!-- Ensures checksums are added to published jars -->
       <plugin>
         <artifactId>maven-install-plugin</artifactId>
-        <version>2.5.2</version>
-        <configuration>
-          <createChecksum>true</createChecksum>
-        </configuration>
+        <version>3.0.0-M1</version>
       </plugin>
 
-      <!-- Uploads occur as a last step -->
+      <!-- Uploads occur as a last step (which also adds checksums) -->
       <plugin>
         <artifactId>maven-deploy-plugin</artifactId>
-        <version>2.8.2</version>
+        <version>3.0.0-M1</version>
       </plugin>
 
       <plugin>
