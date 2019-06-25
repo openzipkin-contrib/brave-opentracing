@@ -36,7 +36,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import javafx.application.Platform;
+
+import static io.opentracing.propagation.Format.Builtin.TEXT_MAP_EXTRACT;
+import static io.opentracing.propagation.Format.Builtin.TEXT_MAP_INJECT;
 
 /**
  * Using a tracer, you can create a spans, inject span contexts into a transport, and extract span
@@ -103,7 +105,6 @@ public final class BraveTracer implements Tracer {
 
       formatToPropagation.put(Format.Builtin.HTTP_HEADERS, tracing.propagation());
       formatToPropagation.put(Format.Builtin.TEXT_MAP, tracing.propagation());
-      // TODO: TEXT_MAP_INJECT and TEXT_MAP_EXTRACT (not excited about this)
     }
 
     /**
@@ -148,9 +149,8 @@ public final class BraveTracer implements Tracer {
     }
 
     for (Propagation<String> propagation : b.formatToPropagation.values()) {
-      formatToInjector.put(Format.Builtin.TEXT_MAP_INJECT, propagation.injector(TEXT_MAP_SETTER));
-      formatToExtractor.put(Format.Builtin.TEXT_MAP_EXTRACT,
-          new TextMapExtractorAdaptor(propagation));
+      formatToInjector.put(TEXT_MAP_INJECT, propagation.injector(TEXT_MAP_SETTER));
+      formatToExtractor.put(TEXT_MAP_EXTRACT, new TextMapExtractorAdaptor(propagation));
     }
   }
 
