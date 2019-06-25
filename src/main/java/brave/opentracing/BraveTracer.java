@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import javafx.application.Platform;
 
 /**
  * Using a tracer, you can create a spans, inject span contexts into a transport, and extract span
@@ -59,10 +60,9 @@ import java.util.Set;
  * @see Propagation
  */
 public final class BraveTracer implements Tracer {
-
-  private final Tracing tracing;
-  private final brave.Tracer brave4;
-  private final BraveScopeManager scopeManager;
+  final Tracing tracing;
+  final brave.Tracer delegate;
+  final BraveScopeManager scopeManager;
 
   /**
    * Returns an implementation of {@link Tracer} which delegates to the provided Brave {@link
@@ -130,8 +130,8 @@ public final class BraveTracer implements Tracer {
 
   BraveTracer(Builder b) {
     tracing = b.tracing;
-    brave4 = b.tracing.tracer();
-    scopeManager = new BraveScopeManager(b.tracing);
+    delegate = b.tracing.tracer();
+    scopeManager = OpenTracingVersion.get().scopeManager(b.tracing);
     for (Map.Entry<Format<TextMap>, Propagation<String>> entry : b.formatToPropagation.entrySet()) {
       formatToInjector.put(entry.getKey(), entry.getValue().injector(TEXT_MAP_SETTER));
       formatToExtractor.put(entry.getKey(), new TextMapExtractorAdaptor(entry.getValue()));
@@ -139,7 +139,8 @@ public final class BraveTracer implements Tracer {
 
     for (Propagation<String> propagation : b.formatToPropagation.values()) {
       formatToInjector.put(Format.Builtin.TEXT_MAP_INJECT, propagation.injector(TEXT_MAP_SETTER));
-      formatToExtractor.put(Format.Builtin.TEXT_MAP_EXTRACT, new TextMapExtractorAdaptor(propagation));
+      formatToExtractor.put(Format.Builtin.TEXT_MAP_EXTRACT,
+          new TextMapExtractorAdaptor(propagation));
     }
   }
 
@@ -156,7 +157,7 @@ public final class BraveTracer implements Tracer {
   }
 
   @Override public BraveSpanBuilder buildSpan(String operationName) {
-    return new BraveSpanBuilder(this, brave4, operationName);
+    return OpenTracingVersion.get().spanBuilder(this, operationName);
   }
 
   /**

@@ -13,6 +13,7 @@
  */
 package brave.opentracing;
 
+import brave.Tracing;
 import io.opentracing.ScopeManager;
 import io.opentracing.Span;
 
@@ -28,8 +29,16 @@ abstract class OpenTracingVersion {
     return INSTANCE;
   }
 
+  BraveScopeManager scopeManager(Tracing tracing) {
+    return new BraveScopeManager(tracing.tracer());
+  }
+
+  BraveSpanBuilder spanBuilder(BraveTracer braveTracer, String operationName) {
+    return new BraveSpanBuilder(braveTracer.delegate, operationName);
+  }
+
   /** Attempt to match the host runtime to a capable OpenTracingVersion implementation. */
-  static OpenTracingVersion findVersion() {
+  private static OpenTracingVersion findVersion() {
     OpenTracingVersion version = v0_32.buildIfSupported();
     if (version != null) return version;
 
@@ -37,6 +46,35 @@ abstract class OpenTracingVersion {
     if (version != null) return version;
 
     throw new UnsupportedOperationException("Unsupported opentracing-api version");
+  }
+
+  static class v0_32 extends OpenTracingVersion {
+    static v0_32 buildIfSupported() {
+      // Find OpenTracing 0.32 deprecated method
+      try {
+        if (ScopeManager.class.getMethod("activate", Span.class, boolean.class)
+            .getAnnotation(Deprecated.class) != null) {
+          return new v0_32();
+        }
+      } catch (NoSuchMethodException e) {
+      }
+      return null;
+    }
+
+    @Override BraveScopeManager scopeManager(Tracing tracing) {
+      return new v0_32_BraveScopeManager(tracing.tracer());
+    }
+
+    @Override BraveSpanBuilder spanBuilder(BraveTracer braveTracer, String operationName) {
+      return new v0_32_BraveSpanBuilder(braveTracer.scopeManager, operationName);
+    }
+
+    @Override public String toString() {
+      return "v0_32{}";
+    }
+
+    v0_32() {
+    }
   }
 
   static class v0_33 extends OpenTracingVersion {
@@ -55,27 +93,6 @@ abstract class OpenTracingVersion {
     }
 
     v0_33() {
-    }
-  }
-
-  static class v0_32 extends OpenTracingVersion {
-    static v0_32 buildIfSupported() {
-      // Find OpenTracing 0.32 deprecated method
-      try {
-        if (ScopeManager.class.getMethod("activate", Span.class, boolean.class)
-            .getAnnotation(Deprecated.class) != null) {
-          return new v0_32();
-        }
-      } catch (NoSuchMethodException e) {
-      }
-      return null;
-    }
-
-    @Override public String toString() {
-      return "v0_32{}";
-    }
-
-    v0_32() {
     }
   }
 }

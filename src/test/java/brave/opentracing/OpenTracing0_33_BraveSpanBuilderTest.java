@@ -48,6 +48,6 @@ public class OpenTracing0_33_BraveSpanBuilderTest {
 
   BraveSpanBuilder newSpanBuilder() {
     // hijacking nullability as tracer isn't referenced until build, making easier comparisons
-    return new BraveSpanBuilder(null, null, "foo");
+    return new BraveSpanBuilder(null, "foo");
   }
 }
