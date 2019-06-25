@@ -19,6 +19,7 @@ import io.opentracing.References;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
+import io.opentracing.tag.Tag;
 import io.opentracing.tag.Tags;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -82,13 +83,13 @@ public class BraveSpanBuilder implements Tracer.SpanBuilder {
     return withTag(key, value.toString());
   }
 
-  @Override public <T> BraveSpanBuilder withTag(io.opentracing.tag.Tag<T> tag, T value) {
+  @Override public <T> BraveSpanBuilder withTag(Tag<T> tag, T value) {
     if (tag == null) throw new NullPointerException("tag == null");
     if (value == null) throw new NullPointerException("value == null");
     if (value instanceof String) return withTag(tag.getKey(), (String) value);
     if (value instanceof Number) return withTag(tag.getKey(), (Number) value);
     if (value instanceof Boolean) return withTag(tag.getKey(), (Boolean) value);
-    throw new IllegalArgumentException("tag value not a string, number or boolean: " + tag);
+    throw new IllegalArgumentException("tag value not a string, number or boolean: " + value);
   }
 
   @Override public BraveSpanBuilder withStartTimestamp(long microseconds) {

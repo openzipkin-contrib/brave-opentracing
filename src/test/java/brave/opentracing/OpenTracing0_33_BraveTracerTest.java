@@ -22,6 +22,9 @@ import brave.propagation.Propagation;
 import brave.propagation.StrictScopeDecorator;
 import brave.propagation.ThreadLocalCurrentTraceContext;
 import brave.propagation.TraceContext;
+import com.tngtech.java.junit.dataprovider.DataProvider;
+import com.tngtech.java.junit.dataprovider.DataProviderRunner;
+import com.tngtech.java.junit.dataprovider.UseDataProvider;
 import io.opentracing.Scope;
 import io.opentracing.propagation.Format;
 import io.opentracing.propagation.TextMap;
@@ -33,11 +36,15 @@ import java.util.List;
 import java.util.Map;
 import org.junit.After;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import zipkin2.Annotation;
 
 import static io.opentracing.propagation.Format.Builtin.HTTP_HEADERS;
 import static io.opentracing.propagation.Format.Builtin.TEXT_MAP;
+import static io.opentracing.propagation.Format.Builtin.TEXT_MAP_EXTRACT;
+import static io.opentracing.propagation.Format.Builtin.TEXT_MAP_INJECT;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.failBecauseExceptionWasNotThrown;
 import static org.assertj.core.data.MapEntry.entry;
 import static org.junit.Assert.assertEquals;
 
@@ -45,7 +52,12 @@ import static org.junit.Assert.assertEquals;
  * This shows how one might make an OpenTracing adapter for Brave, and how to navigate in and out of
  * the core concepts.
  */
+@RunWith(DataProviderRunner.class)
 public class OpenTracing0_33_BraveTracerTest {
+  TraceContext context = TraceContext.newBuilder()
+      .traceId(1L)
+      .spanId(2L)
+      .sampled(true).build();
 
   List<zipkin2.Span> spans = new ArrayList<>();
   Tracing brave = Tracing.newBuilder()
@@ -95,83 +107,91 @@ public class OpenTracing0_33_BraveTracerTest {
     checkSpanReportedToZipkin();
   }
 
-  @Test public void extractTraceContext() {
+  @DataProvider public static Object[] dataProviderExtractTextFormats() {
+    return new Object[] {HTTP_HEADERS, TEXT_MAP, TEXT_MAP_EXTRACT};
+  }
+
+  @Test @UseDataProvider("dataProviderExtractTextFormats")
+  public void extractTraceContext(Format format) {
     Map<String, String> map = new LinkedHashMap<>();
     map.put("X-B3-TraceId", "0000000000000001");
     map.put("X-B3-SpanId", "0000000000000002");
     map.put("X-B3-Sampled", "1");
 
-    BraveSpanContext otContext = opentracing.extract(HTTP_HEADERS, new TextMapAdapter(map));
-
-    assertThat(otContext.unwrap())
-        .isEqualTo(TraceContext.newBuilder()
-            .traceId(1L)
-            .spanId(2L)
-            .sampled(true).build());
+    assertExtractedContext(format, new TextMapAdapter(map));
   }
 
-  @Test public void extractBaggage() {
+  @Test @UseDataProvider("dataProviderExtractTextFormats")
+  public void extractBaggage(Format format) {
     Map<String, String> map = new LinkedHashMap<>();
     map.put("X-B3-TraceId", "0000000000000001");
     map.put("X-B3-SpanId", "0000000000000002");
     map.put("X-B3-Sampled", "1");
     map.put("baggage-country-code", "FO");
 
-    BraveSpanContext otContext = opentracing.extract(HTTP_HEADERS, new TextMapAdapter(map));
+    BraveSpanContext otContext = opentracing.extract(format, new TextMapAdapter(map));
 
     assertThat(otContext.baggageItems())
         .containsExactly(entry("country-code", "FO"));
   }
 
-  @Test public void extractTraceContextTextMap() {
+  @Test @UseDataProvider("dataProviderExtractTextFormats")
+  public void extractOnlyBaggage(Format format) {
     Map<String, String> map = new LinkedHashMap<>();
-    map.put("X-B3-TraceId", "0000000000000001");
-    map.put("X-B3-SpanId", "0000000000000002");
-    map.put("X-B3-Sampled", "1");
+    map.put("baggage-country-code", "FO");
 
-    BraveSpanContext otContext = opentracing.extract(TEXT_MAP, new TextMapAdapter(map));
+    BraveSpanContext otContext = opentracing.extract(format, new TextMapAdapter(map));
 
-    assertThat(otContext.unwrap())
-        .isEqualTo(TraceContext.newBuilder()
-            .traceId(1L)
-            .spanId(2L)
-            .sampled(true).build());
+    assertThat(otContext.toTraceId()).isNull();
+    assertThat(otContext.toSpanId()).isNull();
+    assertThat(otContext.unwrap()).isNull();
+    assertThat(otContext.baggageItems())
+        .containsExactly(entry("country-code", "FO"));
   }
 
-  @Test public void extractTraceContextCaseInsensitive() {
+  @Test @UseDataProvider("dataProviderExtractTextFormats")
+  public void extractOnlySampled(Format format) {
+    Map<String, String> map = new LinkedHashMap<>();
+    map.put("X-B3-Sampled", "1");
+
+    BraveSpanContext otContext = opentracing.extract(format, new TextMapAdapter(map));
+
+    assertThat(otContext.toTraceId()).isNull();
+    assertThat(otContext.toSpanId()).isNull();
+    assertThat(otContext.unwrap()).isNull();
+  }
+
+  @Test @UseDataProvider("dataProviderExtractTextFormats")
+  public void extractTraceContextCaseInsensitive(Format format) {
     Map<String, String> map = new LinkedHashMap<>();
     map.put("X-B3-TraceId", "0000000000000001");
     map.put("x-b3-spanid", "0000000000000002");
     map.put("x-b3-SaMpLeD", "1");
     map.put("other", "1");
 
-    BraveSpanContext otContext = opentracing.extract(HTTP_HEADERS, new TextMapAdapter(map));
+    assertExtractedContext(format, new TextMapAdapter(map));
+  }
 
+  <C> void assertExtractedContext(Format<C> format, C carrier) {
+    BraveSpanContext otContext = opentracing.extract(format, carrier);
+
+    assertThat(otContext.toTraceId())
+        .isEqualTo(otContext.unwrap().traceIdString());
+    assertThat(otContext.toSpanId())
+        .isEqualTo(otContext.unwrap().spanIdString());
     assertThat(otContext.unwrap())
-        .isEqualTo(TraceContext.newBuilder()
-            .traceId(1L)
-            .spanId(2L)
-            .sampled(true).build());
+        .isEqualTo(TraceContext.newBuilder().traceId(1L).spanId(2L).sampled(true).build());
   }
 
-  @Test public void extractTraceContext_unwrapReturnsNull() {
-    Map<String, String> map = new LinkedHashMap<>();
-    map.put("other", "1");
-
-    BraveSpanContext otContext = opentracing.extract(HTTP_HEADERS, new TextMapAdapter(map));
-
-    assertThat(otContext.unwrap()).isNull();
+  @DataProvider public static Object[] dataProviderInjectTextFormats() {
+    return new Object[] {HTTP_HEADERS, TEXT_MAP, TEXT_MAP_INJECT};
   }
 
-  @Test public void injectTraceContext() {
-    TraceContext context = TraceContext.newBuilder()
-        .traceId(1L)
-        .spanId(2L)
-        .sampled(true).build();
-
+  @Test @UseDataProvider("dataProviderInjectTextFormats")
+  public void injectTraceContext(Format format) {
     Map<String, String> map = new LinkedHashMap<>();
     TextMapAdapter carrier = new TextMapAdapter(map);
-    opentracing.inject(BraveSpanContext.create(context), HTTP_HEADERS, carrier);
+    opentracing.inject(BraveSpanContext.create(context), format, carrier);
 
     assertThat(map).containsExactly(
         entry("X-B3-TraceId", "0000000000000001"),
@@ -180,54 +200,51 @@ public class OpenTracing0_33_BraveTracerTest {
     );
   }
 
-  @Test public void injectTraceContext_baggage() {
+  @Test @UseDataProvider("dataProviderInjectTextFormats")
+  public void injectTraceContext_baggage(Format format) {
     BraveSpan span = opentracing.buildSpan("foo").start();
     span.setBaggageItem("country-code", "FO");
 
     Map<String, String> map = new LinkedHashMap<>();
     TextMapAdapter carrier = new TextMapAdapter(map);
-    opentracing.inject(span.context(), HTTP_HEADERS, carrier);
+    opentracing.inject(span.context(), format, carrier);
 
     assertThat(map).containsEntry("baggage-country-code", "FO");
   }
 
-  @Test public void injectTraceContextTextMap() {
-    TraceContext context = TraceContext.newBuilder()
-        .traceId(1L)
-        .spanId(2L)
-        .sampled(true).build();
-
+  @Test public void unsupportedFormat() {
     Map<String, String> map = new LinkedHashMap<>();
     TextMapAdapter carrier = new TextMapAdapter(map);
-    opentracing.inject(BraveSpanContext.create(context), TEXT_MAP, carrier);
+    Format<TextMap> B3 = new Format<TextMap>() {
+    };
 
-    assertThat(map).containsExactly(
-        entry("X-B3-TraceId", "0000000000000001"),
-        entry("X-B3-SpanId", "0000000000000002"),
-        entry("X-B3-Sampled", "1")
-    );
+    try {
+      opentracing.inject(BraveSpanContext.create(context), B3, carrier);
+      failBecauseExceptionWasNotThrown(UnsupportedOperationException.class);
+    } catch (UnsupportedOperationException e){
+    }
+
+    try {
+      opentracing.extract(B3, carrier);
+      failBecauseExceptionWasNotThrown(UnsupportedOperationException.class);
+    } catch (UnsupportedOperationException e){
+    }
   }
 
   @Test public void canUseCustomFormatKeys() {
-    Format<TextMap> B3 = new Format<TextMap>() {
-    };
-    opentracing = BraveTracer.newBuilder(brave)
-        .textMapPropagation(B3, Propagation.B3_STRING).build();
-
-    TraceContext context = TraceContext.newBuilder()
-        .traceId(1L)
-        .spanId(2L)
-        .sampled(true).build();
-
     Map<String, String> map = new LinkedHashMap<>();
     TextMapAdapter carrier = new TextMapAdapter(map);
+    Format<TextMap> B3 = new Format<TextMap>() {
+    };
+
+    opentracing = BraveTracer.newBuilder(brave)
+        .textMapPropagation(B3, Propagation.B3_SINGLE_STRING).build();
+
     opentracing.inject(BraveSpanContext.create(context), B3, carrier);
 
-    assertThat(map).containsExactly(
-        entry("X-B3-TraceId", "0000000000000001"),
-        entry("X-B3-SpanId", "0000000000000002"),
-        entry("X-B3-Sampled", "1")
-    );
+    assertThat(map).containsEntry("b3", "0000000000000001-0000000000000002-1");
+
+    assertExtractedContext(B3, new TextMapAdapter(map));
   }
 
   void checkSpanReportedToZipkin() {
@@ -322,6 +339,14 @@ public class OpenTracing0_33_BraveTracerTest {
         shouldBeIdOfSpanB);
     assertEquals("SpanB's parent should be SpanA", idOfSpanA, parentIdOfSpanB);
     assertEquals("SpanC's parent should be SpanA", idOfSpanA, parentIdOfSpanC);
+  }
+
+  @Test public void activeSpan() {
+    BraveSpan spanA = opentracing.buildSpan("spanA").start();
+    try (Scope scopeA = opentracing.activateSpan(spanA)) {
+      assertThat(opentracing.activeSpan())
+          .isEqualToComparingFieldByField(opentracing.scopeManager().activeSpan());
+    }
   }
 
   @Test public void implicitParentFromSpanManager_start() {

@@ -148,6 +148,7 @@ public final class BraveTracer implements Tracer {
       formatToExtractor.put(entry.getKey(), new TextMapExtractorAdaptor(entry.getValue()));
     }
 
+    // Now, go back and make sure the special inject/extract forms work
     for (Propagation<String> propagation : b.formatToPropagation.values()) {
       formatToInjector.put(TEXT_MAP_INJECT, propagation.injector(TEXT_MAP_SETTER));
       formatToExtractor.put(TEXT_MAP_EXTRACT, new TextMapExtractorAdaptor(propagation));
