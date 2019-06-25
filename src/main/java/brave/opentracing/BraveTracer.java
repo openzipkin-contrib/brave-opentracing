@@ -79,6 +79,16 @@ public final class BraveTracer implements Tracer {
    * ScopeManager}.
    */
   public static Builder newBuilder(Tracing brave4) {
+    // This is the only public entrypoint into the brave-opentracing bridge. The following will
+    // raise an exception when using an incompatible version of opentracing-api. Notably, this
+    // unwraps ExceptionInInitializerError to avoid confusing users, as this is an implementation
+    // detail of the version singleton.
+    try {
+      OpenTracingVersion.get();
+    } catch (ExceptionInInitializerError e) {
+      if (e.getCause() instanceof RuntimeException) throw (RuntimeException) e.getCause();
+      throw e;
+    }
     return new Builder(brave4);
   }
 

@@ -63,6 +63,11 @@ public class OpenTracing0_33_BraveTracerTest {
     brave.close();
   }
 
+  @Test public void versionIsCorrect() {
+    assertThat(OpenTracingVersion.get())
+        .isInstanceOf(OpenTracingVersion.v0_32.class);
+  }
+
   @Test public void startWithOpenTracingAndFinishWithBrave() {
     io.opentracing.Span openTracingSpan = opentracing.buildSpan("encode")
         .withTag("lc", "codec")

@@ -39,13 +39,32 @@ abstract class OpenTracingVersion {
 
   /** Attempt to match the host runtime to a capable OpenTracingVersion implementation. */
   private static OpenTracingVersion findVersion() {
+    if (isV0_31()) {
+      throw new UnsupportedOperationException("OpenTracing 0.31 detected. "
+          + "This version is compatible with io.opentracing:opentracing-api 0.32 or 0.33. "
+          + "Use latest io.opentracing.brave:brave-opentracing:0.33 or update you opentracing-api");
+    }
+
     OpenTracingVersion version = v0_32.buildIfSupported();
     if (version != null) return version;
 
     version = v0_33.buildIfSupported();
     if (version != null) return version;
 
-    throw new UnsupportedOperationException("Unsupported opentracing-api version");
+    throw new UnsupportedOperationException(
+        "This is only compatible with io.opentracing:opentracing-api 0.32 or 0.33");
+  }
+
+  static boolean isV0_31() {
+    // Find OpenTracing 0.31 method
+    try {
+      if (ScopeManager.class.getMethod("activate", Span.class, boolean.class)
+          .getAnnotation(Deprecated.class) == null) {
+        return true;
+      }
+    } catch (NoSuchMethodException e) {
+    }
+    return false;
   }
 
   static class v0_32 extends OpenTracingVersion {
