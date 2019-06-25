@@ -14,6 +14,7 @@
 package brave.opentracing;
 
 import brave.Tracing;
+import brave.propagation.B3SingleFormat;
 import brave.propagation.CurrentTraceContext;
 import brave.propagation.ExtraFieldPropagation;
 import brave.propagation.Propagation;
@@ -27,8 +28,11 @@ import io.opentracing.ScopeManager;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
+import io.opentracing.propagation.BinaryExtract;
+import io.opentracing.propagation.BinaryInject;
 import io.opentracing.propagation.Format;
 import io.opentracing.propagation.TextMap;
+import java.nio.charset.Charset;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -37,6 +41,9 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
+import static io.opentracing.propagation.Format.Builtin.BINARY;
+import static io.opentracing.propagation.Format.Builtin.BINARY_EXTRACT;
+import static io.opentracing.propagation.Format.Builtin.BINARY_INJECT;
 import static io.opentracing.propagation.Format.Builtin.TEXT_MAP_EXTRACT;
 import static io.opentracing.propagation.Format.Builtin.TEXT_MAP_INJECT;
 
@@ -57,6 +64,11 @@ import static io.opentracing.propagation.Format.Builtin.TEXT_MAP_INJECT;
  * request.getHeaders());
  *     Span clientSpan = tracer.buildSpan('...').asChildOf(clientContext).start();
  * </pre>
+ *
+ * <h3>Propagation</h3>
+ * This uses the same propagation as defined in zipkin for text formats. <a
+ * href="https://github.com/openzipkin/b3-propagation#single-header">B3 Single</a> is used for
+ * binary formats.
  *
  * @see BraveSpan
  * @see Propagation
@@ -153,6 +165,12 @@ public final class BraveTracer implements Tracer {
       formatToInjector.put(TEXT_MAP_INJECT, propagation.injector(TEXT_MAP_SETTER));
       formatToExtractor.put(TEXT_MAP_EXTRACT, new TextMapExtractorAdaptor(propagation));
     }
+
+    // Finally add binary support
+    formatToInjector.put(BINARY, BinaryCodec.INSTANCE);
+    formatToInjector.put(BINARY_INJECT, BinaryCodec.INSTANCE);
+    formatToExtractor.put(BINARY, BinaryCodec.INSTANCE);
+    formatToExtractor.put(BINARY_EXTRACT, BinaryCodec.INSTANCE);
   }
 
   @Override public BraveScopeManager scopeManager() {
@@ -258,5 +276,25 @@ public final class BraveTracer implements Tracer {
       lcSet.add(f.toLowerCase(Locale.ROOT));
     }
     return lcSet;
+  }
+
+  // Temporary until https://github.com/openzipkin/brave/issues/928
+  enum BinaryCodec implements Injector<BinaryInject>, Extractor<BinaryExtract> {
+    INSTANCE;
+
+    final Charset ascii = Charset.forName("US-ASCII");
+
+    @Override public TraceContextOrSamplingFlags extract(BinaryExtract binaryExtract) {
+      try {
+        return B3SingleFormat.parseB3SingleFormat(ascii.decode(binaryExtract.extractionBuffer()));
+      } catch (RuntimeException e) {
+        return TraceContextOrSamplingFlags.EMPTY;
+      }
+    }
+
+    @Override public void inject(TraceContext traceContext, BinaryInject binaryInject) {
+      byte[] injected = B3SingleFormat.writeB3SingleFormatAsBytes(traceContext);
+      binaryInject.injectionBuffer(injected.length).put(injected);
+    }
   }
 }

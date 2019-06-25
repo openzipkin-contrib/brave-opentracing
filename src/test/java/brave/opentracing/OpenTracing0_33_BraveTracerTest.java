@@ -26,9 +26,12 @@ import com.tngtech.java.junit.dataprovider.DataProvider;
 import com.tngtech.java.junit.dataprovider.DataProviderRunner;
 import com.tngtech.java.junit.dataprovider.UseDataProvider;
 import io.opentracing.Scope;
+import io.opentracing.propagation.BinaryAdapters;
+import io.opentracing.propagation.BinaryInject;
 import io.opentracing.propagation.Format;
 import io.opentracing.propagation.TextMap;
 import io.opentracing.propagation.TextMapAdapter;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -39,6 +42,11 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import zipkin2.Annotation;
 
+import static io.opentracing.propagation.BinaryAdapters.extractionCarrier;
+import static io.opentracing.propagation.BinaryAdapters.injectionCarrier;
+import static io.opentracing.propagation.Format.Builtin.BINARY;
+import static io.opentracing.propagation.Format.Builtin.BINARY_EXTRACT;
+import static io.opentracing.propagation.Format.Builtin.BINARY_INJECT;
 import static io.opentracing.propagation.Format.Builtin.HTTP_HEADERS;
 import static io.opentracing.propagation.Format.Builtin.TEXT_MAP;
 import static io.opentracing.propagation.Format.Builtin.TEXT_MAP_EXTRACT;
@@ -221,13 +229,13 @@ public class OpenTracing0_33_BraveTracerTest {
     try {
       opentracing.inject(BraveSpanContext.create(context), B3, carrier);
       failBecauseExceptionWasNotThrown(UnsupportedOperationException.class);
-    } catch (UnsupportedOperationException e){
+    } catch (UnsupportedOperationException e) {
     }
 
     try {
       opentracing.extract(B3, carrier);
       failBecauseExceptionWasNotThrown(UnsupportedOperationException.class);
-    } catch (UnsupportedOperationException e){
+    } catch (UnsupportedOperationException e) {
     }
   }
 
@@ -245,6 +253,16 @@ public class OpenTracing0_33_BraveTracerTest {
     assertThat(map).containsEntry("b3", "0000000000000001-0000000000000002-1");
 
     assertExtractedContext(B3, new TextMapAdapter(map));
+  }
+
+  @Test public void binaryFormat() {
+    ByteBuffer buffer = ByteBuffer.allocate(128);
+
+    opentracing.inject(BraveSpanContext.create(context), BINARY_INJECT, injectionCarrier(buffer));
+    buffer.rewind();
+
+    assertThat(opentracing.extract(BINARY_EXTRACT, extractionCarrier(buffer)).unwrap())
+        .isEqualTo(context);
   }
 
   void checkSpanReportedToZipkin() {
