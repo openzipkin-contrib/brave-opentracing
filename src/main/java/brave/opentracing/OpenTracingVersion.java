@@ -42,7 +42,7 @@ abstract class OpenTracingVersion {
     if (isV0_31()) {
       throw new UnsupportedOperationException("OpenTracing 0.31 detected. "
           + "This version is compatible with io.opentracing:opentracing-api 0.32 or 0.33. "
-          + "Use latest io.opentracing.brave:brave-opentracing:0.33 or update you opentracing-api");
+          + "io.opentracing.brave:brave-opentracing:0.33.13+ works with version 0.31");
     }
 
     OpenTracingVersion version = v0_32.buildIfSupported();
