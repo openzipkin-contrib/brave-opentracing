@@ -1,8 +1,22 @@
-[![Build Status][ci-img]][ci] [![Released Version][maven-img]][maven]
+[![Build Status](https://travis-ci.org/openzipkin-contrib/brave-opentracing.svg?branch=master)](https://travis-ci.org/openzipkin-contrib/brave-opentracing)
+[![Maven Central](https://img.shields.io/maven-central/v/io.opentracing.brave/brave-opentracing.svg)](https://search.maven.org/search?q=g:io.opentracing.brave%20AND%20a:brave-opentracing)
 
 # OpenTracing Java Bridge for Zipkin
 
 This library is a Java bridge between the [Brave/Zipkin Api](https://github.com/openzipkin/brave/tree/master/brave#brave-api-v4) and OpenTracing. It allows its users to write portable (in the [OpenTracing](http://opentracing.io) sense) instrumentation that's translated into Brave instrumentation transparently.
+
+## Compatibility
+
+[opentracing-api](https://github.com/opentracing/opentracing-java) has broken compatibility
+on most releases, which limits the ability for this project to provide a large version range.
+
+Here are the versions currently available, noting only the latest version of
+opentracing-api is likely to have new work in this repository.
+
+Version | opentracing-api version
+--------|-------------------------
+0.34.0+ | 0.32.0, 0.33.0
+0.33.13 | 0.31.0
 
 ## Required Reading
 
@@ -59,8 +73,3 @@ tral](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22io.opentracing.brave%22)
 ### Library Snapshots
 Snapshots are uploaded to [JFrog](https://oss.jfrog.org/artifactory/oss-snapshot-local) after commits to maste
 r.
-
-   [ci-img]: https://travis-ci.org/openzipkin-contrib/brave-opentracing.svg?branch=master
-   [ci]: https://travis-ci.org/openzipkin-contrib/brave-opentracing
-   [maven-img]: https://img.shields.io/maven-central/v/io.opentracing.brave/brave-opentracing.svg?maxAge=2592000
-   [maven]: http://search.maven.org/#search%7Cga%7C1%7Cbrave-opentracing
