@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 The OpenZipkin Authors
+ * Copyright 2016-2019 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -18,67 +18,55 @@ import brave.propagation.B3Propagation;
 import brave.propagation.ExtraFieldPropagation;
 import brave.propagation.StrictScopeDecorator;
 import brave.propagation.ThreadLocalCurrentTraceContext;
+import brave.sampler.Sampler;
 import com.tngtech.java.junit.dataprovider.DataProvider;
 import com.tngtech.java.junit.dataprovider.DataProviderRunner;
 import com.tngtech.java.junit.dataprovider.UseDataProvider;
-import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
-import io.opentracing.propagation.Format;
-import io.opentracing.propagation.TextMapExtractAdapter;
-import io.opentracing.propagation.TextMapInjectAdapter;
+import io.opentracing.propagation.TextMapAdapter;
+import io.opentracing.tag.Tag;
 import io.opentracing.tag.Tags;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import zipkin2.Endpoint;
 import zipkin2.Span.Kind;
 
+import static io.opentracing.propagation.Format.Builtin.TEXT_MAP;
 import static io.opentracing.tag.Tags.SAMPLING_PRIORITY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
 
 @RunWith(DataProviderRunner.class)
-public class BraveSpanTest {
+public class OpenTracing0_33_BraveSpanTest {
   List<zipkin2.Span> spans = new ArrayList<>();
-  BraveTracer tracer = BraveTracer.create(
-      Tracing.newBuilder()
-          .localServiceName("tracer")
-          .currentTraceContext(ThreadLocalCurrentTraceContext.newBuilder()
-              .addScopeDecorator(StrictScopeDecorator.create())
-              .build())
-          .propagationFactory(ExtraFieldPropagation.newFactory(B3Propagation.FACTORY, "client-id"))
-          .spanReporter(spans::add).build()
-  );
+  Tracing brave;
+  BraveTracer tracer;
 
-  /** OpenTracing span implements auto-closeable, and implies reporting on close */
-  @Test public void autoCloseOnTryFinally() {
-    try (Scope scope = tracer.buildSpan("foo").startActive(true)) {
-    }
-
-    assertThat(spans)
-        .hasSize(1);
+  @Before public void init() {
+    init(Tracing.newBuilder());
   }
 
-  @Test public void autoCloseOnTryFinally_doesntReportTwice() {
-    try (Scope scope = tracer.buildSpan("foo").startActive(true)) {
-      scope.span().finish(); // user closes and also auto-close closes
-    }
-
-    assertThat(spans)
-        .hasSize(1);
+  void init(Tracing.Builder tracingBuilder) {
+    if (brave != null) brave.close();
+    brave = tracingBuilder
+        .localServiceName("tracer")
+        .currentTraceContext(ThreadLocalCurrentTraceContext.newBuilder()
+            .addScopeDecorator(StrictScopeDecorator.create())
+            .build())
+        .propagationFactory(ExtraFieldPropagation.newFactory(B3Propagation.FACTORY, "client-id"))
+        .spanReporter(spans::add).build();
+    tracer = BraveTracer.create(brave);
   }
 
-  @Test public void autoCloseOnTryFinally_dontClose() {
-    try (Scope scope = tracer.buildSpan("foo").startActive(false)) {
-    }
-
-    assertThat(spans)
-        .isEmpty();
+  @After public void clear() {
+    brave.close();
   }
 
   @DataProvider
@@ -155,7 +143,7 @@ public class BraveSpanTest {
 
     assertThat(spans)
         .flatExtracting(s -> s.tags().entrySet())
-        .containsExactly(entry("hello", "monster"));
+        .containsOnly(entry("hello", "monster"));
   }
 
   @Test public void afterFinish_dataIgnored() {
@@ -178,7 +166,7 @@ public class BraveSpanTest {
         .start();
 
     Map<String, String> carrier = new LinkedHashMap<>();
-    tracer.inject(spanClient.context(), Format.Builtin.TEXT_MAP, new TextMapInjectAdapter(carrier));
+    tracer.inject(spanClient.context(), TEXT_MAP, new TextMapAdapter(carrier));
 
     BraveTracer tracer2 = BraveTracer.create(
         Tracing.newBuilder()
@@ -186,8 +174,7 @@ public class BraveSpanTest {
             .spanReporter(spans::add).build()
     );
 
-    SpanContext extractedContext =
-        tracer2.extract(Format.Builtin.TEXT_MAP, new TextMapExtractAdapter(carrier));
+    SpanContext extractedContext = tracer2.extract(TEXT_MAP, new TextMapAdapter(carrier));
 
     Span spanServer = tracer2.buildSpan("foo")
         .asChildOf(extractedContext)
@@ -219,7 +206,7 @@ public class BraveSpanTest {
     carrier.put("client-id", "aloha");
 
     SpanContext extractedContext =
-        tracer.extract(Format.Builtin.TEXT_MAP, new TextMapExtractAdapter(carrier));
+        tracer.extract(TEXT_MAP, new TextMapAdapter(carrier));
 
     assertThat(extractedContext.baggageItems())
         .contains(entry("client-id", "aloha"));
@@ -233,6 +220,20 @@ public class BraveSpanTest {
         .isEqualTo("aloha");
 
     serverSpan.finish();
+  }
+
+  @Test public void samplingPriority_sampledWhenAtStart() {
+    init(Tracing.newBuilder().sampler(Sampler.NEVER_SAMPLE));
+
+    BraveSpan span = tracer.buildSpan("foo")
+        .withTag(SAMPLING_PRIORITY.getKey(), 1)
+        .start();
+
+    assertThat(span.context().unwrap().sampled())
+        .isTrue();
+
+    span.finish();
+    assertThat(spans).hasSize(1);
   }
 
   @Test public void samplingPriority_unsampledWhenAtStart() {
@@ -297,8 +298,76 @@ public class BraveSpanTest {
             .port(8080).build());
   }
 
-  @After public void clear() {
-    Tracing current = Tracing.current();
-    if (current != null) current.close();
+  @Test public void withTag() {
+    tracer.buildSpan("encode")
+        .withTag(Tags.HTTP_METHOD.getKey(), "GET")
+        .withTag(Tags.ERROR.getKey(), true)
+        .withTag(Tags.HTTP_STATUS.getKey(), 404)
+        .start().finish();
+
+    assertContainsTags();
   }
+
+  @Test public void withTag_object() {
+    tracer.buildSpan("encode")
+        .withTag(Tags.HTTP_METHOD, "GET")
+        .withTag(Tags.ERROR, true)
+        .withTag(Tags.HTTP_STATUS, 404)
+        .start().finish();
+
+    assertContainsTags();
+  }
+
+  @Test public void setTag() {
+    tracer.buildSpan("encode").start()
+        .setTag(Tags.HTTP_METHOD.getKey(), "GET")
+        .setTag(Tags.ERROR.getKey(), true)
+        .setTag(Tags.HTTP_STATUS.getKey(), 404)
+        .finish();
+
+    assertContainsTags();
+  }
+
+  @Test public void setTag_object() {
+    tracer.buildSpan("encode").start()
+        .setTag(Tags.HTTP_METHOD, "GET")
+        .setTag(Tags.ERROR, true)
+        .setTag(Tags.HTTP_STATUS, 404)
+        .finish();
+
+    assertContainsTags();
+  }
+
+  void assertContainsTags() {
+    assertThat(spans.get(0).tags())
+        .containsEntry("http.method", "GET")
+        .containsEntry("error", "true")
+        .containsEntry("http.status_code", "404");
+  }
+
+  Tag<Exception> exceptionTag = new Tag<Exception>() {
+    @Override public String getKey() {
+      return "exception";
+    }
+
+    @Override public void set(Span span, Exception value) {
+      span.setTag(getKey(), value.getClass().getSimpleName());
+    }
+  };
+
+  @Test public void setTag_custom() {
+    tracer.buildSpan("encode").start()
+        .setTag(exceptionTag, new RuntimeException("ice cream")).finish();
+
+    assertThat(spans.get(0).tags())
+        .containsEntry("exception", "RuntimeException");
+  }
+
+  /** There is no javadoc, but we were told only string, bool or number? */
+  @Test(expected = IllegalArgumentException.class)
+  public void withTag_custom_unsupported() {
+    tracer.buildSpan("encode")
+        .withTag(exceptionTag, new RuntimeException("ice cream"));
+  }
+
 }

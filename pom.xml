@@ -27,6 +27,7 @@
   <version>0.34.0-SNAPSHOT</version>
 
   <properties>
+    <main.basedir>${project.basedir}</main.basedir>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.build.resourceEncoding>UTF-8</project.build.resourceEncoding>
 
@@ -40,10 +41,17 @@
     <maven.compiler.source>1.8</maven.compiler.source>
     <maven.compiler.target>1.8</maven.compiler.target>
 
-    <errorprone.args />
+    <!-- disable errorprone override warning as this allows us to support different versions -->
+    <errorprone.args>-Xep:MissingOverride:OFF</errorprone.args>
     <errorprone.version>2.3.3</errorprone.version>
 
-    <main.basedir>${project.basedir}</main.basedir>
+    <!-- versions needed also for integration tests -->
+    <junit.version>4.12</junit.version>
+    <assertj.version>3.12.2</assertj.version>
+    <mockito.version>2.28.2</mockito.version>
+    <junit-dataprovider.version>1.13.1</junit-dataprovider.version>
+    <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
+    <maven-surefire-plugin.version>3.0.0-M3</maven-surefire-plugin.version>
   </properties>
 
   <organization>
@@ -107,7 +115,7 @@
     <dependency>
       <groupId>io.opentracing</groupId>
       <artifactId>opentracing-api</artifactId>
-      <version>0.31.0</version>
+      <version>0.32.0</version>
     </dependency>
     <dependency>
       <groupId>io.zipkin.brave</groupId>
@@ -117,7 +125,7 @@
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
-      <version>4.12</version>
+      <version>${junit.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -128,19 +136,19 @@
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
-      <version>2.28.2</version>
+      <version>${mockito.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.assertj</groupId>
       <artifactId>assertj-core</artifactId>
-      <version>3.12.1</version>
+      <version>${assertj.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>com.tngtech.java</groupId>
       <artifactId>junit-dataprovider</artifactId>
-      <version>1.13.1</version>
+      <version>${junit-dataprovider.version}</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -159,7 +167,7 @@
 
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.8.1</version>
+        <version>${maven-compiler-plugin.version}</version>
         <inherited>true</inherited>
         <configuration>
           <!-- Retrolambda will rewrite lambdas as Java 6 bytecode -->
@@ -169,6 +177,11 @@
           <fork>true</fork>
           <showWarnings>true</showWarnings>
         </configuration>
+      </plugin>
+
+      <plugin>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>${maven-surefire-plugin.version}</version>
       </plugin>
 
       <plugin>
@@ -282,11 +295,6 @@
           <repo>maven</repo>
           <packageName>opentracing-brave</packageName>
         </configuration>
-      </plugin>
-
-      <plugin>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <version>3.0.0-M3</version>
       </plugin>
 
       <plugin>

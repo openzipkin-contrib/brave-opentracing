@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 The OpenZipkin Authors
+ * Copyright 2016-2019 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -14,86 +14,46 @@
 package brave.opentracing;
 
 import brave.Tracer;
-import brave.Tracing;
 import brave.propagation.CurrentTraceContext;
 import io.opentracing.Scope;
 import io.opentracing.ScopeManager;
 import io.opentracing.Span;
-import java.util.ArrayDeque;
-import java.util.Deque;
 
 /** This integrates with Brave's {@link CurrentTraceContext}. */
-public final class BraveScopeManager implements ScopeManager {
-  // This probably needs to be redesigned to stash the OpenTracing span in brave's .extra()
-  // We wouldn't have to do this if it weren't a requirement to return the same instance...
-  //
-  // When scopes are leaked this thread local will prevent this type from being unloaded. This can
-  // cause problems in redeployment scenarios. https://github.com/openzipkin/brave/issues/785
-  final ThreadLocal<Deque<BraveScope>> currentScopes = new ThreadLocal<Deque<BraveScope>>() {
-    @Override protected Deque<BraveScope> initialValue() {
-      return new ArrayDeque<>();
-    }
-  };
-  private final Tracer tracer;
+public class BraveScopeManager implements ScopeManager {
+  final brave.Tracer tracer;
 
-  BraveScopeManager(Tracing tracing) {
-    tracer = tracing.tracer();
+  BraveScopeManager(Tracer tracer) {
+    this.tracer = tracer;
   }
 
-  /**
-   * This api's only purpose is to retrieve the {@link Scope#span() span}.
-   *
-   * Calling {@link Scope#close() close } on the returned scope has no effect on the active span
-   */
-  @Override public Scope active() {
-    BraveSpan span = currentSpan();
-    if (span == null) return null;
-    return new Scope() {
-      @Override public void close() {
-        // no-op
-      }
-
-      @Override public Span span() {
-        return span;
-      }
-    };
-  }
-
-  /** Attempts to get a span from the current api, falling back to brave's native one */
-  BraveSpan currentSpan() {
-    BraveScope scope = currentScopes.get().peekFirst();
-    if (scope != null) {
-      return scope.span();
-    } else {
-      brave.Span braveSpan = tracer.currentSpan();
-      if (braveSpan != null) {
-        return new BraveSpan(tracer, braveSpan);
-      }
-    }
-    return null;
-  }
-
-  @Override public BraveScope activate(Span span, boolean finishSpanOnClose) {
+  @Override public BraveScope activate(Span span) {
     if (span == null) return null;
     if (!(span instanceof BraveSpan)) {
       throw new IllegalArgumentException(
           "Span must be an instance of brave.opentracing.BraveSpan, but was " + span.getClass());
     }
-    return newScope((BraveSpan) span, finishSpanOnClose);
+    return new BraveScope(tracer.withSpanInScope(((BraveSpan) span).delegate));
   }
 
-  BraveScope newScope(BraveSpan span, boolean finishSpanOnClose) {
-    BraveScope result = new BraveScope(
-        this,
-        tracer.withSpanInScope(span.delegate),
-        span,
-        finishSpanOnClose
-    );
-    currentScopes.get().addFirst(result);
-    return result;
+  @Override public BraveSpan activeSpan() {
+    brave.Span braveSpan = tracer.currentSpan();
+    return braveSpan != null ? new BraveSpan(tracer, braveSpan) : null;
   }
 
-  void deregister(BraveScope span) {
-    currentScopes.get().remove(span);
+  /* @Override deprecated 0.32 method: Intentionally no override to ensure 0.33 works! */
+  @Deprecated public Scope active() {
+    throw new UnsupportedOperationException("Not supported in OpenTracing 0.33+");
+  }
+
+  /* @Override deprecated 0.32 method: Intentionally no override to ensure 0.33 works! */
+  @Deprecated public BraveScope activate(Span span, boolean finishSpanOnClose) {
+    throw new UnsupportedOperationException("Not supported in OpenTracing 0.33+");
+  }
+
+  /** Attempts to get a span from the current api, falling back to brave's native one */
+  /* @Override deprecated 0.32 method: Intentionally no override to ensure 0.33 works! */
+  @Deprecated BraveSpan currentSpan() {
+    throw new UnsupportedOperationException("Not supported in OpenTracing 0.33+");
   }
 }

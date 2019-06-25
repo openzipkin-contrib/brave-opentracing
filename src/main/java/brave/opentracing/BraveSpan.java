@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 The OpenZipkin Authors
+ * Copyright 2016-2019 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -91,6 +91,14 @@ public final class BraveSpan implements Span {
       delegate = tracer.toSpan(delegate.context().toBuilder().sampled(false).build());
     }
     return setTag(key, value.toString());
+  }
+
+  @Override public <T> BraveSpan setTag(io.opentracing.tag.Tag<T> tag, T value) {
+    // Strange there's a new api only to dispatch something that can be done as easily directly
+    // eg instead of tag.set(span, value) this allows span.setTag(tag, value) (3 more characters!)
+    // Would be nice to see documentation clarify why this was important enough to break api over.
+    tag.set(this, value);
+    return this;
   }
 
   @Override public BraveSpan log(Map<String, ?> fields) {

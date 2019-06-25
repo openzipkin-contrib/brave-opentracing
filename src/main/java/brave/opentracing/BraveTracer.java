@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 The OpenZipkin Authors
+ * Copyright 2016-2019 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -14,6 +14,7 @@
 package brave.opentracing;
 
 import brave.Tracing;
+import brave.propagation.B3SingleFormat;
 import brave.propagation.CurrentTraceContext;
 import brave.propagation.ExtraFieldPropagation;
 import brave.propagation.Propagation;
@@ -23,12 +24,15 @@ import brave.propagation.TraceContext;
 import brave.propagation.TraceContext.Extractor;
 import brave.propagation.TraceContext.Injector;
 import brave.propagation.TraceContextOrSamplingFlags;
-import io.opentracing.Scope;
 import io.opentracing.ScopeManager;
+import io.opentracing.Span;
 import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
+import io.opentracing.propagation.BinaryExtract;
+import io.opentracing.propagation.BinaryInject;
 import io.opentracing.propagation.Format;
 import io.opentracing.propagation.TextMap;
+import java.nio.charset.Charset;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -36,6 +40,12 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+
+import static io.opentracing.propagation.Format.Builtin.BINARY;
+import static io.opentracing.propagation.Format.Builtin.BINARY_EXTRACT;
+import static io.opentracing.propagation.Format.Builtin.BINARY_INJECT;
+import static io.opentracing.propagation.Format.Builtin.TEXT_MAP_EXTRACT;
+import static io.opentracing.propagation.Format.Builtin.TEXT_MAP_INJECT;
 
 /**
  * Using a tracer, you can create a spans, inject span contexts into a transport, and extract span
@@ -55,13 +65,18 @@ import java.util.Set;
  *     Span clientSpan = tracer.buildSpan('...').asChildOf(clientContext).start();
  * </pre>
  *
+ * <h3>Propagation</h3>
+ * This uses the same propagation as defined in zipkin for text formats. <a
+ * href="https://github.com/openzipkin/b3-propagation#single-header">B3 Single</a> is used for
+ * binary formats.
+ *
  * @see BraveSpan
  * @see Propagation
  */
 public final class BraveTracer implements Tracer {
-
-  private final brave.Tracer brave4;
-  private final BraveScopeManager scopeManager;
+  final Tracing tracing;
+  final brave.Tracer delegate;
+  final BraveScopeManager scopeManager;
 
   /**
    * Returns an implementation of {@link Tracer} which delegates to the provided Brave {@link
@@ -78,6 +93,16 @@ public final class BraveTracer implements Tracer {
    * ScopeManager}.
    */
   public static Builder newBuilder(Tracing brave4) {
+    // This is the only public entrypoint into the brave-opentracing bridge. The following will
+    // raise an exception when using an incompatible version of opentracing-api. Notably, this
+    // unwraps ExceptionInInitializerError to avoid confusing users, as this is an implementation
+    // detail of the version singleton.
+    try {
+      OpenTracingVersion.get();
+    } catch (ExceptionInInitializerError e) {
+      if (e.getCause() instanceof RuntimeException) throw (RuntimeException) e.getCause();
+      throw e;
+    }
     return new Builder(brave4);
   }
 
@@ -89,6 +114,7 @@ public final class BraveTracer implements Tracer {
     Builder(Tracing tracing) {
       if (tracing == null) throw new NullPointerException("brave tracing component == null");
       this.tracing = tracing;
+
       formatToPropagation.put(Format.Builtin.HTTP_HEADERS, tracing.propagation());
       formatToPropagation.put(Format.Builtin.TEXT_MAP, tracing.propagation());
     }
@@ -122,16 +148,29 @@ public final class BraveTracer implements Tracer {
     }
   }
 
-  final Map<Format<TextMap>, Injector<TextMap>> formatToInjector = new LinkedHashMap<>();
-  final Map<Format<TextMap>, Extractor<TextMap>> formatToExtractor = new LinkedHashMap<>();
+  final Map<Format<?>, Injector<?>> formatToInjector = new LinkedHashMap<>();
+  final Map<Format<?>, Extractor<?>> formatToExtractor = new LinkedHashMap<>();
 
   BraveTracer(Builder b) {
-    brave4 = b.tracing.tracer();
-    scopeManager = new BraveScopeManager(b.tracing);
+    tracing = b.tracing;
+    delegate = b.tracing.tracer();
+    scopeManager = OpenTracingVersion.get().scopeManager(b.tracing);
     for (Map.Entry<Format<TextMap>, Propagation<String>> entry : b.formatToPropagation.entrySet()) {
       formatToInjector.put(entry.getKey(), entry.getValue().injector(TEXT_MAP_SETTER));
       formatToExtractor.put(entry.getKey(), new TextMapExtractorAdaptor(entry.getValue()));
     }
+
+    // Now, go back and make sure the special inject/extract forms work
+    for (Propagation<String> propagation : b.formatToPropagation.values()) {
+      formatToInjector.put(TEXT_MAP_INJECT, propagation.injector(TEXT_MAP_SETTER));
+      formatToExtractor.put(TEXT_MAP_EXTRACT, new TextMapExtractorAdaptor(propagation));
+    }
+
+    // Finally add binary support
+    formatToInjector.put(BINARY, BinaryCodec.INSTANCE);
+    formatToInjector.put(BINARY_INJECT, BinaryCodec.INSTANCE);
+    formatToExtractor.put(BINARY, BinaryCodec.INSTANCE);
+    formatToExtractor.put(BINARY_EXTRACT, BinaryCodec.INSTANCE);
   }
 
   @Override public BraveScopeManager scopeManager() {
@@ -139,24 +178,27 @@ public final class BraveTracer implements Tracer {
   }
 
   @Override public BraveSpan activeSpan() {
-    Scope scope = this.scopeManager.active();
-    return scope != null ? (BraveSpan) scope.span() : null;
+    return scopeManager.activeSpan();
+  }
+
+  @Override public BraveScope activateSpan(Span span) {
+    return scopeManager.activate(span);
   }
 
   @Override public BraveSpanBuilder buildSpan(String operationName) {
-    return new BraveSpanBuilder(this, brave4, operationName);
+    return OpenTracingVersion.get().spanBuilder(this, operationName);
   }
 
   /**
    * Injects the underlying context using B3 encoding by default.
    */
   @Override public <C> void inject(SpanContext spanContext, Format<C> format, C carrier) {
-    Injector<TextMap> injector = formatToInjector.get(format);
+    Injector<C> injector = (Injector<C>) formatToInjector.get(format);
     if (injector == null) {
       throw new UnsupportedOperationException(format + " not in " + formatToInjector.keySet());
     }
     TraceContext traceContext = ((BraveSpanContext) spanContext).unwrap();
-    injector.inject(traceContext, (TextMap) carrier);
+    injector.inject(traceContext, carrier);
   }
 
   /**
@@ -164,15 +206,19 @@ public final class BraveTracer implements Tracer {
    * encoded context in the carrier, or upon error extracting it.
    */
   @Override public <C> BraveSpanContext extract(Format<C> format, C carrier) {
-    Extractor<TextMap> extractor = formatToExtractor.get(format);
+    Extractor<C> extractor = (Extractor<C>) formatToExtractor.get(format);
     if (extractor == null) {
       throw new UnsupportedOperationException(format + " not in " + formatToExtractor.keySet());
     }
-    TraceContextOrSamplingFlags extractionResult = extractor.extract((TextMap) carrier);
+    TraceContextOrSamplingFlags extractionResult = extractor.extract(carrier);
     return BraveSpanContext.create(extractionResult);
   }
 
-  static final Setter<TextMap, String> TEXT_MAP_SETTER = new Setter<TextMap, String>(){
+  @Override public void close() {
+    tracing.close();
+  }
+
+  static final Setter<TextMap, String> TEXT_MAP_SETTER = new Setter<TextMap, String>() {
     @Override public void put(TextMap carrier, String key, String value) {
       carrier.put(key, value);
     }
@@ -230,5 +276,25 @@ public final class BraveTracer implements Tracer {
       lcSet.add(f.toLowerCase(Locale.ROOT));
     }
     return lcSet;
+  }
+
+  // Temporary until https://github.com/openzipkin/brave/issues/928
+  enum BinaryCodec implements Injector<BinaryInject>, Extractor<BinaryExtract> {
+    INSTANCE;
+
+    final Charset ascii = Charset.forName("US-ASCII");
+
+    @Override public TraceContextOrSamplingFlags extract(BinaryExtract binaryExtract) {
+      try {
+        return B3SingleFormat.parseB3SingleFormat(ascii.decode(binaryExtract.extractionBuffer()));
+      } catch (RuntimeException e) {
+        return TraceContextOrSamplingFlags.EMPTY;
+      }
+    }
+
+    @Override public void inject(TraceContext traceContext, BinaryInject binaryInject) {
+      byte[] injected = B3SingleFormat.writeB3SingleFormatAsBytes(traceContext);
+      binaryInject.injectionBuffer(injected.length).put(injected);
+    }
   }
 }
