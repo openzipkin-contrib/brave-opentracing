@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 The OpenZipkin Authors
+ * Copyright 2016-2019 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -36,7 +36,7 @@ import java.util.Map;
  */
 public final class BraveSpanBuilder implements Tracer.SpanBuilder {
 
-  private final Tracer tracer;
+  private final BraveTracer tracer;
   private final brave.Tracer braveTracer;
   private final Map<String, String> tags = new LinkedHashMap<>();
 
@@ -46,7 +46,7 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
   private BraveSpanContext reference;
   private boolean ignoreActiveSpan = false;
 
-  BraveSpanBuilder(Tracer tracer, brave.Tracer braveTracer, String operationName) {
+  BraveSpanBuilder(BraveTracer tracer, brave.Tracer braveTracer, String operationName) {
     this.tracer = tracer;
     this.braveTracer = braveTracer;
     this.operationName = operationName;
@@ -88,20 +88,31 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
     return withTag(key, value.toString());
   }
 
+  @Override public <T> BraveSpanBuilder withTag(io.opentracing.tag.Tag<T> tag, T value) {
+    if (tag == null) throw new NullPointerException("tag == null");
+    if (value == null) throw new NullPointerException("value == null");
+    if (value instanceof String) return withTag(tag.getKey(), (String) value);
+    if (value instanceof Number) return withTag(tag.getKey(), (Number) value);
+    if (value instanceof Boolean) return withTag(tag.getKey(), (Boolean) value);
+    throw new IllegalArgumentException("tag value not a string, number or boolean: " + tag);
+  }
+
   @Override public BraveSpanBuilder withStartTimestamp(long microseconds) {
     this.timestamp = microseconds;
     return this;
   }
 
-  @Override @Deprecated public BraveSpan startManual() {
+  /* @Override deprecated 0.32 method: Intentionally no override to ensure 0.33 works! */
+  @Deprecated public BraveSpan startManual() {
     return start();
   }
 
-  @Override public Scope startActive(boolean finishSpanOnClose) {
+  /* @Override deprecated 0.32 method: Intentionally no override to ensure 0.33 works! */
+  @Deprecated public BraveScope startActive(boolean finishSpanOnClose) {
     if (!ignoreActiveSpan) {
-      Scope parent = tracer.scopeManager().active();
+      BraveSpan parent = tracer.scopeManager().activeSpan();
       if (parent != null) {
-        asChildOf(parent.span());
+        asChildOf(parent.context());
       }
     }
     return tracer.scopeManager().activate(start(), finishSpanOnClose);
@@ -117,9 +128,9 @@ public final class BraveSpanBuilder implements Tracer.SpanBuilder {
 
     // Check if active span should be established as CHILD_OF relationship
     if (reference == null && !ignoreActiveSpan) {
-      Scope parent = tracer.scopeManager().active();
+      BraveSpan parent = tracer.scopeManager().activeSpan();
       if (parent != null) {
-        asChildOf(parent.span());
+        asChildOf(parent.context());
       }
     }
 

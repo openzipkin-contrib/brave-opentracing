@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 The OpenZipkin Authors
+ * Copyright 2016-2019 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -50,7 +50,8 @@ public final class BraveScope implements Scope {
     source.deregister(this);
   }
 
-  @Override public BraveSpan span() {
+  /* @Override deprecated 0.32 method: Intentionally no override to ensure 0.33 works! */
+  @Deprecated public BraveSpan span() {
     return wrapped;
   }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 The OpenZipkin Authors
+ * Copyright 2016-2019 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -41,11 +41,12 @@ public final class BraveScopeManager implements ScopeManager {
   }
 
   /**
-   * This api's only purpose is to retrieve the {@link Scope#span() span}.
+   * This api's only purpose is to retrieve the {@link BraveScope#span() span}.
    *
    * Calling {@link Scope#close() close } on the returned scope has no effect on the active span
    */
-  @Override public Scope active() {
+  /* @Override deprecated 0.32 method: Intentionally no override to ensure 0.33 works! */
+  @Deprecated public Scope active() {
     BraveSpan span = currentSpan();
     if (span == null) return null;
     return new Scope() {
@@ -53,14 +54,23 @@ public final class BraveScopeManager implements ScopeManager {
         // no-op
       }
 
-      @Override public Span span() {
+      /* @Override deprecated 0.32 method: Intentionally no override to ensure 0.33 works! */
+      @Deprecated public Span span() {
         return span;
       }
     };
   }
 
+  @Override public BraveSpan activeSpan() {
+    brave.Span braveSpan = tracer.currentSpan();
+    if (braveSpan != null) {
+      return new BraveSpan(tracer, braveSpan);
+    }
+    return null;
+  }
+
   /** Attempts to get a span from the current api, falling back to brave's native one */
-  BraveSpan currentSpan() {
+  @Deprecated BraveSpan currentSpan() {
     BraveScope scope = currentScopes.get().peekFirst();
     if (scope != null) {
       return scope.span();
@@ -73,7 +83,12 @@ public final class BraveScopeManager implements ScopeManager {
     return null;
   }
 
-  @Override public BraveScope activate(Span span, boolean finishSpanOnClose) {
+  @Override public BraveScope activate(Span span) {
+    return activate(span, false);
+  }
+
+  /* @Override deprecated 0.32 method: Intentionally no override to ensure 0.33 works! */
+  @Deprecated public BraveScope activate(Span span, boolean finishSpanOnClose) {
     if (span == null) return null;
     if (!(span instanceof BraveSpan)) {
       throw new IllegalArgumentException(

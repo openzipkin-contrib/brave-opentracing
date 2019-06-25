@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 The OpenZipkin Authors
+ * Copyright 2016-2019 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -20,7 +20,7 @@ import org.junit.Test;
 
 import static org.assertj.core.api.Java6Assertions.assertThat;
 
-public class BraveSpanBuilderTest {
+public class OpenTracing0_33_BraveSpanBuilderTest {
 
   /** Ensures when the caller invokes with null, nothing happens */
   @Test public void asChildOf_nullParentContext_noop() {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 The OpenZipkin Authors
+ * Copyright 2016-2019 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -13,6 +13,7 @@
  */
 package brave.opentracing;
 
+import brave.Span;
 import brave.propagation.ExtraFieldPropagation;
 import brave.propagation.TraceContext;
 import brave.propagation.TraceContextOrSamplingFlags;
@@ -22,8 +23,8 @@ import java.util.Map;
 
 /**
  * Holds the {@linkplain TraceContext} used by the underlying {@linkplain brave.Tracer}, or an {link
- * TraceContextOrSamplingFlags extraction result if an incoming context}. An {@link TraceContext#sampled() unsampled}
- * context results in a {@link brave.NoopSpan}.
+ * TraceContextOrSamplingFlags extraction result if an incoming context}. An {@link
+ * TraceContext#sampled() unsampled} context results in a {@link Span#isNoop() noop span}.
  *
  * <p>This type also includes hooks to integrate with the underlying {@linkplain brave.Tracer}. Ex
  * you can access the underlying trace context with {@link #unwrap}
@@ -35,11 +36,12 @@ public abstract class BraveSpanContext implements SpanContext {
    *
    * <p>When a span context is returned from {@link BraveSpan#context()}, there's no ambiguity. It
    * represents the current span. However, a span context can be in an intermediate state when
-   * extracted from headers. In other words, unwrap might not have a {@link TraceContext} to return.
+   * extracted from headers. In other words, unwrap might not have a {@link TraceContext} to
+   * return.
    *
    * <p>Why? {@link BraveTracer#extract(Format, Object) Extraction from headers} can return partial
-   * info. For example, in Amazon Web Services, you may be suggested just a trace ID. In other cases, you
-   * might just inherit baggage or a sampling hint.
+   * info. For example, in Amazon Web Services, you may be suggested just a trace ID. In other
+   * cases, you might just inherit baggage or a sampling hint.
    */
   public abstract TraceContext unwrap();
 
@@ -67,6 +69,15 @@ public abstract class BraveSpanContext implements SpanContext {
       return context;
     }
 
+    // notice: no sampling or parent span ID here!
+    @Override public String toTraceId() {
+      return context.traceIdString();
+    }
+
+    @Override public String toSpanId() {
+      return context.spanIdString();
+    }
+
     @Override public Iterable<Map.Entry<String, String>> baggageItems() {
       return ExtraFieldPropagation.getAll(context).entrySet();
     }
@@ -86,6 +97,17 @@ public abstract class BraveSpanContext implements SpanContext {
 
     @Override public TraceContext unwrap() {
       return extractionResult.context();
+    }
+
+    // notice: no sampling or parent span ID here!
+    @Override public String toTraceId() {
+      TraceContext context = extractionResult.context();
+      return context != null ? context.traceIdString() : null;
+    }
+
+    @Override public String toSpanId() {
+      TraceContext context = extractionResult.context();
+      return context != null ? context.spanIdString() : null;
     }
 
     /** Returns empty unless {@link ExtraFieldPropagation} is in use */
