@@ -1,11 +1,11 @@
-# OpenZipkin Release Process
+# Zipkin Release Process
 
 This repo uses semantic versions. Please keep this in mind when choosing version numbers.
 
 1. **Alert others you are releasing**
 
    There should be no commits made to master while the release is in progress (about 10 minutes). Before you start
-   a release, alert others on [gitter](https://gitter.im/opentracing/public) so that they don't accidentally merge
+   a release, alert others on [gitter](https://gitter.im/openzipkin/zipkin) so that they don't accidentally merge
    anything. If they do, and the build fails because of that, you'll have to recreate the release tag described below.
 
 1. **Push a git tag**
@@ -15,7 +15,7 @@ This repo uses semantic versions. Please keep this in mind when choosing version
 1. **Wait for Travis CI**
 
    This part is controlled by [`travis/publish.sh`](travis/publish.sh). It creates a bunch of new commits, bumps
-   the version, publishes artifacts, and syncs to Maven Central.
+   the version, publishes artifacts and syncs to Maven Central.
 
 ## Credentials
 
@@ -69,4 +69,31 @@ $ ./mvnw versions:set -DnewVersion=1.3.3-SNAPSHOT -DgenerateBackupPoms=false
 $ ./mvnw com.mycila:license-maven-plugin:format
 $ ./mvnw versions:set -DnewVersion=1.3.2-SNAPSHOT -DgenerateBackupPoms=false
 $ git commit -am"Adjusts copyright headers for this year"
+```
+
+## Manually releasing
+
+If for some reason, you lost access to CI or otherwise cannot get automation to work, bear in mind this is a normal maven project, and can be released accordingly. The main thing to understand is that libraries are not GPG signed here (it happens at bintray), and also that there is a utility to synchronise to maven central. Note that if for some reason [bintray is down](https://status.bintray.com/), the below will not work.
+
+```bash
+# First, set variable according to your personal credentials. These would normally be decrypted from .travis.yml
+BINTRAY_USER=your_github_account
+BINTRAY_KEY=xxx-https://bintray.com/profile/edit-xxx
+SONATYPE_USER=your_sonatype_account
+SONATYPE_PASSWORD=your_sonatype_password
+VERSION=xx-version-to-release-xx
+
+# now from latest master, prepare the release. We are intentionally deferring pushing commits
+./mvnw --batch-mode -s ./.settings.xml -Prelease -nsu -DreleaseVersion=$VERSION -Darguments="-DskipTests -Dlicense.skip=true" release:prepare  -DpushChanges=false
+
+# once this works, deploy and synchronize to maven central
+git checkout $VERSION
+./mvnw --batch-mode -s ./.settings.xml -Prelease -nsu -DskipTests deploy
+./mvnw --batch-mode -s ./.settings.xml -nsu -N io.zipkin.centralsync-maven-plugin:centralsync-maven-plugin:sync
+
+# if all the above worked, clean up stuff and push the local changes.
+./mvnw release:clean
+git checkout master
+git push
+git push --tags
 ```

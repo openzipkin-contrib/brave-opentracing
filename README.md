@@ -42,7 +42,7 @@ tracer = BraveTracer.create(braveTracing);
 braveTracer = tracer.unwrap();
 ```
 
-Note: if you haven't updated to a server running the [Zipkin v2 api](http://zipkin.io/zipkin-api/#/default/post_spans), you
+Note: If you haven't updated to a server running the [Zipkin v2 api](https://zipkin.io/zipkin-api/#/default/post_spans), you
 can use the old Zipkin format like this:
 
 ```java
@@ -50,78 +50,15 @@ sender = OkHttpSender.json("http://127.0.0.1:9411/api/v1/spans");
 spanReporter = AsyncReporter.builder(sender).build(SpanEncoder.JSON_V1);
 ```
 
-## Usage
+## Artifacts
+The artifact published is `brave-opentracing` under the group ID `io.opentracing.brave`
 
-Some example code demonstrating how the OpenTracing Api is to be used.
-
-Code in the first process…
-
-```java
-    // start a span
-    try ( Span span0 = tracer.buildSpan("span-0")
-            .withTag("description", "top level initial span in the original process")
-            .start() ) {
-
-        // do something
-
-        // start another span
-        try ( Span span1 = tracer.buildSpan("span-1")
-                .asChildOf(span0)
-                .withTag("description", "the first inner span in the original process")
-                .start() ) {
-
-            // do something
-
-            // start another span
-            try ( Span span2 = tracer.buildSpan("span-2")
-                    .asChildOf(span1)
-                    .withTag("description", "the second inner span in the original process")
-                    .start() ) {
-
-                // do something
-
-                // cross process boundary
-                Map<String,String> map = new HashMap<>();
-                tracer.inject(span2.context(), Format.Builtin.HTTP_HEADERS, new TextMapInjectAdapter(map));
-
-                // request.addHeaders(map);
-                // request.doGet();
-            }
-        }
-    }
-```
-
-Code in the second process
-
-```java
-    // Map<String,String> map = request.getHeaders();
-
-    try ( Span span3 = tracer.buildSpan("span-3")
-            .asChildOf(tracer.extract(Format.Builtin.HTTP_HEADERS, new TextMapExtractAdapter(map)))
-            .withTag("description", "the third inner span in the second process")
-            .start() ) {
-
-        // do something
-
-        // start another span
-        try ( Span span4 = tracer.buildSpan("span-4")
-                .asChildOf(span3)
-                .withTag("description", "the fourth inner span in the second process")
-                .start() ) {
-
-            // do something
-
-            // cross process boundary
-            map = new HashMap<>();
-            tracer.inject(span4.context(), Format.Builtin.HTTP_HEADERS, new TextMapInjectAdapter(map));
-
-            // request.addHeaders(map);
-            // request.doGet();
-        }
-    }
-```
-
-This code repeats from process to process, as far through the stack as required.
+### Library Releases
+Releases are uploaded to [Bintray](https://bintray.com/openzipkin/maven/zipkin) and synchronized to [Maven Cen
+tral](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22io.opentracing.brave%22)
+### Library Snapshots
+Snapshots are uploaded to [JFrog](https://oss.jfrog.org/artifactory/oss-snapshot-local) after commits to maste
+r.
 
    [ci-img]: https://travis-ci.org/openzipkin-contrib/brave-opentracing.svg?branch=master
    [ci]: https://travis-ci.org/openzipkin-contrib/brave-opentracing
