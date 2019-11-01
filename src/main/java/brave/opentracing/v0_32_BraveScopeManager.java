@@ -13,7 +13,7 @@
  */
 package brave.opentracing;
 
-import brave.Tracer;
+import brave.Tracing;
 import brave.propagation.CurrentTraceContext;
 import io.opentracing.Scope;
 import io.opentracing.Span;
@@ -34,8 +34,8 @@ final class v0_32_BraveScopeManager extends BraveScopeManager {
         }
       };
 
-  v0_32_BraveScopeManager(Tracer tracer) {
-    super(tracer);
+  v0_32_BraveScopeManager(Tracing tracing) {
+    super(tracing);
   }
 
   @Override @Deprecated public Scope active() {

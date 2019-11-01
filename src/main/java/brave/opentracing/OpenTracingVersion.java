@@ -30,11 +30,11 @@ abstract class OpenTracingVersion {
   }
 
   BraveScopeManager scopeManager(Tracing tracing) {
-    return new BraveScopeManager(tracing.tracer());
+    return new BraveScopeManager(tracing);
   }
 
   BraveSpanBuilder spanBuilder(BraveTracer braveTracer, String operationName) {
-    return new BraveSpanBuilder(braveTracer.delegate, operationName);
+    return new BraveSpanBuilder(braveTracer.tracing, operationName);
   }
 
   /** Attempt to match the host runtime to a capable OpenTracingVersion implementation. */
@@ -81,7 +81,7 @@ abstract class OpenTracingVersion {
     }
 
     @Override BraveScopeManager scopeManager(Tracing tracing) {
-      return new v0_32_BraveScopeManager(tracing.tracer());
+      return new v0_32_BraveScopeManager(tracing);
     }
 
     @Override BraveSpanBuilder spanBuilder(BraveTracer braveTracer, String operationName) {
