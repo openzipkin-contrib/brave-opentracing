@@ -14,6 +14,7 @@
 package brave.opentracing;
 
 import brave.Tracer;
+import brave.Tracing;
 import brave.propagation.CurrentTraceContext;
 import io.opentracing.Scope;
 import io.opentracing.ScopeManager;
@@ -21,10 +22,12 @@ import io.opentracing.Span;
 
 /** This integrates with Brave's {@link CurrentTraceContext}. */
 public class BraveScopeManager implements ScopeManager {
-  final brave.Tracer tracer;
+  final Tracing tracing;
+  final Tracer tracer;
 
-  BraveScopeManager(Tracer tracer) {
-    this.tracer = tracer;
+  BraveScopeManager(Tracing tracing) {
+    this.tracing = tracing;
+    this.tracer = tracing.tracer();
   }
 
   @Override public BraveScope activate(Span span) {

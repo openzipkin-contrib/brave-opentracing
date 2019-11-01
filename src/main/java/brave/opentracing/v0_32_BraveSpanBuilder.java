@@ -17,7 +17,7 @@ final class v0_32_BraveSpanBuilder extends BraveSpanBuilder {
   final BraveScopeManager scopeManager;
 
   v0_32_BraveSpanBuilder(BraveScopeManager scopeManager, String operationName) {
-    super(scopeManager.tracer, operationName);
+    super(scopeManager.tracing, operationName);
     this.scopeManager = scopeManager;
   }
 

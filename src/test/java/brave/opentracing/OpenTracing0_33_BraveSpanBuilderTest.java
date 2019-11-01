@@ -13,14 +13,21 @@
  */
 package brave.opentracing;
 
+import brave.Tracing;
 import io.opentracing.References;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
+import org.junit.After;
 import org.junit.Test;
 
 import static org.assertj.core.api.Java6Assertions.assertThat;
 
 public class OpenTracing0_33_BraveSpanBuilderTest {
+  Tracing tracing = Tracing.newBuilder().build();
+
+  @After public void clear() {
+    tracing.close();
+  }
 
   /** Ensures when the caller invokes with null, nothing happens */
   @Test public void asChildOf_nullParentContext_noop() {
@@ -48,6 +55,6 @@ public class OpenTracing0_33_BraveSpanBuilderTest {
 
   BraveSpanBuilder newSpanBuilder() {
     // hijacking nullability as tracer isn't referenced until build, making easier comparisons
-    return new BraveSpanBuilder(null, "foo");
+    return new BraveSpanBuilder(tracing, "foo");
   }
 }
