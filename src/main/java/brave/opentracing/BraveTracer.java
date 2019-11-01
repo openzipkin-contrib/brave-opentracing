@@ -173,6 +173,11 @@ public final class BraveTracer implements Tracer {
     formatToExtractor.put(BINARY_EXTRACT, BinaryCodec.INSTANCE);
   }
 
+  /** Returns the underlying {@link Tracing} instance used to configure this. */
+  public Tracing unwrap() {
+    return tracing;
+  }
+
   @Override public BraveScopeManager scopeManager() {
     return scopeManager;
   }

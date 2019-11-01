@@ -53,7 +53,7 @@ braveTracing = Tracing.newBuilder()
 tracer = BraveTracer.create(braveTracing);
 
 // You can later unwrap the underlying Brave Api as needed
-braveTracer = tracer.unwrap();
+braveTracing = tracer.unwrap();
 ```
 
 Note: If you haven't updated to a server running the [Zipkin v2 api](https://zipkin.io/zipkin-api/#/default/post_spans), you
