@@ -34,10 +34,14 @@ Firstly, you need a Tracer, configured to [report to Zipkin](https://github.com/
 sender = OkHttpSender.create("http://127.0.0.1:9411/api/v2/spans");
 spanReporter = AsyncReporter.create(sender);
 
+// If you want to consume and produce both B3 and ot-* headers, use
+// CombinedPropagation.newFactory(Arrays.asList(B3Propagation.FACTORY, OpenTracingPropagation.FACTORY))
+basePropagationFactory = B3Propagation.FACTORY;
+
 // If you want to support baggage, indicate the fields you'd like to
 // whitelist, in this case "country-code" and "user-id". On the wire,
 // they will be prefixed like "baggage-country-code"
-propagationFactory = ExtraFieldPropagation.newFactoryBuilder(B3Propagation.FACTORY)
+propagationFactory = ExtraFieldPropagation.newFactoryBuilder(basePropagationFactory)
                                 .addPrefixedFields("baggage-", Arrays.asList("country-code", "user-id"))
                                 .build();
 
