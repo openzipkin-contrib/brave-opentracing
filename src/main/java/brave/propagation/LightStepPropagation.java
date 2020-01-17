@@ -20,17 +20,17 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Implements <a href="https://opentracing.io/specification/">OpenTracing Propagation</a>, specifically the
- * "ot-*" flavor thereof, which is the de facto standard.
+ * Implements LightStep propagation, which is a vendor-specific propagation. In case of HTTP, this uses the
+ * following headers: ot-tracer-traceid, ot-tracer-spanid, ot-tracer-sampled.
  */
-public class OpenTracingPropagation<K> implements Propagation<K> {
+public class LightStepPropagation<K> implements Propagation<K> {
   public static final Factory FACTORY = new Factory() {
     @Override public <L> Propagation<L> create(final KeyFactory<L> keyFactory) {
-      return new OpenTracingPropagation<>(keyFactory);
+      return new LightStepPropagation<>(keyFactory);
     }
 
     @Override public String toString() {
-      return "OpenTracingPropagationFactory";
+      return "LightStepPropagationFactory";
     }
   };
 
@@ -44,7 +44,7 @@ public class OpenTracingPropagation<K> implements Propagation<K> {
   private final K sampledKey;
   private final List<K> fields;
 
-  public OpenTracingPropagation(final KeyFactory<K> keyFactory) {
+  public LightStepPropagation(final KeyFactory<K> keyFactory) {
     traceIdKey = keyFactory.create(FIELD_NAME_TRACE_ID);
     spanIdKey = keyFactory.create(FIELD_NAME_SPAN_ID);
     sampledKey = keyFactory.create(FIELD_NAME_SAMPLED);

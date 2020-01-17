@@ -29,9 +29,9 @@ public class CombinedPropagationTests {
   private static final String ENCODED_SPAN_ID = "000000000000162e";
   private static final Propagation.Setter<Map<String, String>, String> SETTER = Map::put;
   private static final Propagation.Getter<Map<String, String>, String> GETTER = Map::get;
-  private static final Propagation<String> COMBINED_B3_OT_PROPAGATION = CombinedPropagation.newFactory(Arrays.asList(
+  private static final Propagation<String> COMBINED_B3_LS_PROPAGATION = CombinedPropagation.newFactory(Arrays.asList(
           B3Propagation.FACTORY,
-          OpenTracingPropagation.FACTORY
+          LightStepPropagation.FACTORY
   )).create(Propagation.KeyFactory.STRING);
   private static final TraceContext NOT_SAMPLED_CONTEXT = TraceContext.newBuilder()
           .traceId(TRACE_ID)
@@ -57,7 +57,7 @@ public class CombinedPropagationTests {
 
   @Test public void testInject() {
     final Map<String, String> carrier = new HashMap<>();
-    COMBINED_B3_OT_PROPAGATION.injector(SETTER).inject(SAMPLED_CONTEXT, carrier);
+    COMBINED_B3_LS_PROPAGATION.injector(SETTER).inject(SAMPLED_CONTEXT, carrier);
     assertThat(carrier)
             .contains(
                     entry("X-B3-TraceId", ENCODED_TRACE_ID),
@@ -90,7 +90,7 @@ public class CombinedPropagationTests {
   }
 
   @Test public void testExtract() {
-    final TraceContext.Extractor<Map<String, String>> extractor = COMBINED_B3_OT_PROPAGATION.extractor(GETTER);
+    final TraceContext.Extractor<Map<String, String>> extractor = COMBINED_B3_LS_PROPAGATION.extractor(GETTER);
 
     final Map<String, String> b3Carrier = new HashMap<>();
     b3Carrier.put("X-B3-TraceId", ENCODED_TRACE_ID);
@@ -98,11 +98,11 @@ public class CombinedPropagationTests {
     b3Carrier.put("X-B3-Sampled", "1");
     assertThat(extractor.extract(b3Carrier)).isEqualTo(TraceContextOrSamplingFlags.create(SAMPLED_CONTEXT));
 
-    final Map<String, String> otCarrier = new HashMap<>();
-    otCarrier.put("ot-tracer-traceid", ENCODED_TRACE_ID);
-    otCarrier.put("ot-tracer-spanid", ENCODED_SPAN_ID);
-    otCarrier.put("ot-tracer-sampled", "1");
-    assertThat(extractor.extract(otCarrier)).isEqualTo(TraceContextOrSamplingFlags.create(SAMPLED_CONTEXT));
+    final Map<String, String> lsCarrier = new HashMap<>();
+    lsCarrier.put("ot-tracer-traceid", ENCODED_TRACE_ID);
+    lsCarrier.put("ot-tracer-spanid", ENCODED_SPAN_ID);
+    lsCarrier.put("ot-tracer-sampled", "1");
+    assertThat(extractor.extract(lsCarrier)).isEqualTo(TraceContextOrSamplingFlags.create(SAMPLED_CONTEXT));
   }
 
   @Test public void testExtractOrder() {
@@ -152,7 +152,6 @@ class MapInjectingPropagation implements Propagation<String> {
     throw new UnsupportedOperationException();
   }
 }
-
 
 class FieldExtractingPropagation implements Propagation<String> {
   private final String key;

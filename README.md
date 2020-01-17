@@ -34,8 +34,8 @@ Firstly, you need a Tracer, configured to [report to Zipkin](https://github.com/
 sender = OkHttpSender.create("http://127.0.0.1:9411/api/v2/spans");
 spanReporter = AsyncReporter.create(sender);
 
-// If you want to consume and produce both B3 and ot-* headers, use
-// CombinedPropagation.newFactory(Arrays.asList(B3Propagation.FACTORY, OpenTracingPropagation.FACTORY))
+// If you want to consume and produce both B3 and (for instance) LightStep headers, use
+// CombinedPropagation.newFactory(Arrays.asList(B3Propagation.FACTORY, LightStepPropagation.FACTORY))
 basePropagationFactory = B3Propagation.FACTORY;
 
 // If you want to support baggage, indicate the fields you'd like to

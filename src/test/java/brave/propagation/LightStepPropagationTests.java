@@ -27,14 +27,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
 
 @RunWith(DataProviderRunner.class)
-public class OpenTracingPropagationTests {
+public class LightStepPropagationTests {
   private static final long TRACE_ID = 1234;
   private static final long SPAN_ID = 5678;
   private static final String ENCODED_TRACE_ID = "00000000000004d2";
   private static final String ENCODED_SPAN_ID = "000000000000162e";
-  private static final OpenTracingPropagation<String> OPEN_TRACING_PROPAGATION = new OpenTracingPropagation<>(Propagation.KeyFactory.STRING);
-  private static final TraceContext.Injector<Map<String, String>> INJECTOR = OPEN_TRACING_PROPAGATION.injector(Map::put);
-  private static final TraceContext.Extractor<Map<String, String>> EXTRACTOR = OPEN_TRACING_PROPAGATION.extractor(Map::get);
+  private static final LightStepPropagation<String> LIGHT_STEP_PROPAGATION = new LightStepPropagation<>(Propagation.KeyFactory.STRING);
+  private static final TraceContext.Injector<Map<String, String>> INJECTOR = LIGHT_STEP_PROPAGATION.injector(Map::put);
+  private static final TraceContext.Extractor<Map<String, String>> EXTRACTOR = LIGHT_STEP_PROPAGATION.extractor(Map::get);
   private static final TraceContext NOT_SAMPLED_CONTEXT = TraceContext.newBuilder()
           .traceId(TRACE_ID)
           .spanId(SPAN_ID)
@@ -44,7 +44,7 @@ public class OpenTracingPropagationTests {
           .build();
 
   @Test public void testKeys() {
-    assertThat(OPEN_TRACING_PROPAGATION.keys())
+    assertThat(LIGHT_STEP_PROPAGATION.keys())
             .containsExactlyInAnyOrder("ot-tracer-traceid", "ot-tracer-spanid", "ot-tracer-sampled");
   }
 
