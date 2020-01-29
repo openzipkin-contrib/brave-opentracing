@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2019 The OpenZipkin Authors
+ * Copyright 2016-2020 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -58,7 +58,7 @@ public class OpenTracing0_33_BraveScopeManagerTest {
     try {
       assertThat(opentracing.scopeManager().activeSpan())
           .extracting("delegate.context")
-          .containsExactly(spanInScope.context());
+          .isEqualTo(spanInScope.context());
     } finally {
       spanInScope.finish();
     }
