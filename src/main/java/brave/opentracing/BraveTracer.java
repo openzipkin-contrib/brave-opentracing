@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2019 The OpenZipkin Authors
+ * Copyright 2016-2020 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -14,9 +14,10 @@
 package brave.opentracing;
 
 import brave.Tracing;
+import brave.baggage.BaggageField;
+import brave.internal.InternalBaggage;
 import brave.propagation.B3SingleFormat;
 import brave.propagation.CurrentTraceContext;
-import brave.propagation.ExtraFieldPropagation;
 import brave.propagation.Propagation;
 import brave.propagation.Propagation.Getter;
 import brave.propagation.Propagation.Setter;
@@ -35,8 +36,6 @@ import io.opentracing.propagation.TextMap;
 import java.nio.charset.Charset;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -155,15 +154,17 @@ public final class BraveTracer implements Tracer {
     tracing = b.tracing;
     delegate = b.tracing.tracer();
     scopeManager = OpenTracingVersion.get().scopeManager(b.tracing);
+    BaggageField.create("foo"); // ensure the below instance exists
+    Set<String> allKeyNames = InternalBaggage.instance.allKeyNames(tracing.propagationFactory());
     for (Map.Entry<Format<TextMap>, Propagation<String>> entry : b.formatToPropagation.entrySet()) {
       formatToInjector.put(entry.getKey(), entry.getValue().injector(TEXT_MAP_SETTER));
-      formatToExtractor.put(entry.getKey(), new TextMapExtractorAdaptor(entry.getValue()));
+      formatToExtractor.put(entry.getKey(), new ExtractorAdaptor(entry.getValue(), allKeyNames));
     }
 
     // Now, go back and make sure the special inject/extract forms work
     for (Propagation<String> propagation : b.formatToPropagation.values()) {
       formatToInjector.put(TEXT_MAP_INJECT, propagation.injector(TEXT_MAP_SETTER));
-      formatToExtractor.put(TEXT_MAP_EXTRACT, new TextMapExtractorAdaptor(propagation));
+      formatToExtractor.put(TEXT_MAP_EXTRACT, new ExtractorAdaptor(propagation, allKeyNames));
     }
 
     // Finally add binary support
@@ -249,16 +250,13 @@ public final class BraveTracer implements Tracer {
    *
    * <p>See https://github.com/opentracing/opentracing-java/issues/305
    */
-  static final class TextMapExtractorAdaptor implements Extractor<TextMap> {
-    final Set<String> allPropagationKeys;
+  static final class ExtractorAdaptor implements Extractor<TextMap> {
+    final Set<String> allNames;
     final Extractor<Map<String, String>> delegate;
 
-    TextMapExtractorAdaptor(Propagation<String> propagation) {
-      allPropagationKeys = lowercaseSet(propagation.keys());
-      if (propagation instanceof ExtraFieldPropagation) {
-        allPropagationKeys.addAll(((ExtraFieldPropagation<String>) propagation).extraKeys());
-      }
-      delegate = propagation.extractor(LC_MAP_GETTER);
+    ExtractorAdaptor(Propagation<String> propagation, Set<String> allNames) {
+      this.allNames = allNames;
+      this.delegate = propagation.extractor(LC_MAP_GETTER);
     }
 
     /** Performs case-insensitive lookup */
@@ -267,20 +265,12 @@ public final class BraveTracer implements Tracer {
       for (Iterator<Map.Entry<String, String>> it = entries.iterator(); it.hasNext(); ) {
         Map.Entry<String, String> next = it.next();
         String inputKey = next.getKey().toLowerCase(Locale.ROOT);
-        if (allPropagationKeys.contains(inputKey)) {
+        if (allNames.contains(inputKey)) {
           cache.put(inputKey, next.getValue());
         }
       }
       return delegate.extract(cache);
     }
-  }
-
-  static Set<String> lowercaseSet(List<String> fields) {
-    Set<String> lcSet = new LinkedHashSet<>();
-    for (String f : fields) {
-      lcSet.add(f.toLowerCase(Locale.ROOT));
-    }
-    return lcSet;
   }
 
   // Temporary until https://github.com/openzipkin/brave/issues/928

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2019 The OpenZipkin Authors
+ * Copyright 2016-2020 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -14,14 +14,13 @@
 package brave.opentracing;
 
 import brave.Tracing;
+import brave.baggage.BaggageField;
+import brave.baggage.BaggagePropagation;
 import brave.propagation.B3Propagation;
-import brave.propagation.ExtraFieldPropagation;
-import brave.propagation.StrictScopeDecorator;
-import brave.propagation.ThreadLocalCurrentTraceContext;
+import brave.propagation.StrictCurrentTraceContext;
 import brave.propagation.TraceContext;
 import io.opentracing.Scope;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import org.junit.After;
 import org.junit.Test;
@@ -32,12 +31,10 @@ import static org.junit.Assert.assertEquals;
 public class OpenTracing0_32_BraveTracerTest {
   List<zipkin2.Span> spans = new ArrayList<>();
   Tracing brave = Tracing.newBuilder()
-      .currentTraceContext(ThreadLocalCurrentTraceContext.newBuilder()
-          .addScopeDecorator(StrictScopeDecorator.create())
-          .build())
-      .propagationFactory(ExtraFieldPropagation.newFactoryBuilder(B3Propagation.FACTORY)
-          .addPrefixedFields("baggage-", Arrays.asList("country-code", "user-id"))
-          .build())
+      .currentTraceContext(StrictCurrentTraceContext.create())
+      .propagationFactory(BaggagePropagation.newFactoryBuilder(B3Propagation.FACTORY)
+          .addRemoteField(BaggageField.create("country-code"), "baggage-country-code")
+          .addRemoteField(BaggageField.create("user-id"), "baggage-user-id").build())
       .spanReporter(spans::add)
       .build();
   BraveTracer opentracing = BraveTracer.create(brave);

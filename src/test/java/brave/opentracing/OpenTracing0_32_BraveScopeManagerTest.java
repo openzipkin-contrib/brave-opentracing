@@ -15,8 +15,7 @@ package brave.opentracing;
 
 import brave.ScopedSpan;
 import brave.Tracing;
-import brave.propagation.StrictScopeDecorator;
-import brave.propagation.ThreadLocalCurrentTraceContext;
+import brave.propagation.StrictCurrentTraceContext;
 import io.opentracing.Scope;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,9 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class OpenTracing0_32_BraveScopeManagerTest {
   List<zipkin2.Span> spans = new ArrayList<>();
   Tracing brave = Tracing.newBuilder()
-      .currentTraceContext(ThreadLocalCurrentTraceContext.newBuilder()
-          .addScopeDecorator(StrictScopeDecorator.create())
-          .build())
+      .currentTraceContext(StrictCurrentTraceContext.create())
       .spanReporter(spans::add)
       .build();
 

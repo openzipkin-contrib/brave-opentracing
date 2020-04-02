@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2019 The OpenZipkin Authors
+ * Copyright 2016-2020 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -14,7 +14,8 @@
 package brave.opentracing;
 
 import brave.Tracer;
-import brave.propagation.ExtraFieldPropagation;
+import brave.baggage.BaggageField;
+import brave.baggage.BaggagePropagation;
 import io.opentracing.Span;
 import io.opentracing.tag.Tags;
 import java.util.Iterator;
@@ -130,15 +131,19 @@ public final class BraveSpan implements Span {
     return this;
   }
 
-  /** This is a NOOP unless {@link ExtraFieldPropagation} is in use */
+  /** This is a NOOP unless {@link BaggagePropagation} is in use */
   @Override public BraveSpan setBaggageItem(String key, String value) {
-    ExtraFieldPropagation.set(delegate.context(), key, value);
+    BaggageField field = BaggageField.getByName(delegate.context(), key);
+    if (field == null) return this;
+    field.updateValue(delegate.context(), value);
     return this;
   }
 
-  /** Returns null unless {@link ExtraFieldPropagation} is in use */
+  /** Returns null unless {@link BaggagePropagation} is in use */
   @Override public String getBaggageItem(String key) {
-    return ExtraFieldPropagation.get(delegate.context(), key);
+    BaggageField field = BaggageField.getByName(delegate.context(), key);
+    if (field == null) return null;
+    return field.getValue(delegate.context());
   }
 
   @Override public BraveSpan setOperationName(String operationName) {

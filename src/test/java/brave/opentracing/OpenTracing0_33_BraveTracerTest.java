@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2019 The OpenZipkin Authors
+ * Copyright 2016-2020 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -16,24 +16,21 @@ package brave.opentracing;
 import brave.Span;
 import brave.Tracer.SpanInScope;
 import brave.Tracing;
+import brave.baggage.BaggageField;
+import brave.baggage.BaggagePropagation;
 import brave.propagation.B3Propagation;
-import brave.propagation.ExtraFieldPropagation;
 import brave.propagation.Propagation;
-import brave.propagation.StrictScopeDecorator;
-import brave.propagation.ThreadLocalCurrentTraceContext;
+import brave.propagation.StrictCurrentTraceContext;
 import brave.propagation.TraceContext;
 import com.tngtech.java.junit.dataprovider.DataProvider;
 import com.tngtech.java.junit.dataprovider.DataProviderRunner;
 import com.tngtech.java.junit.dataprovider.UseDataProvider;
 import io.opentracing.Scope;
-import io.opentracing.propagation.BinaryAdapters;
-import io.opentracing.propagation.BinaryInject;
 import io.opentracing.propagation.Format;
 import io.opentracing.propagation.TextMap;
 import io.opentracing.propagation.TextMapAdapter;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,7 +41,6 @@ import zipkin2.Annotation;
 
 import static io.opentracing.propagation.BinaryAdapters.extractionCarrier;
 import static io.opentracing.propagation.BinaryAdapters.injectionCarrier;
-import static io.opentracing.propagation.Format.Builtin.BINARY;
 import static io.opentracing.propagation.Format.Builtin.BINARY_EXTRACT;
 import static io.opentracing.propagation.Format.Builtin.BINARY_INJECT;
 import static io.opentracing.propagation.Format.Builtin.HTTP_HEADERS;
@@ -69,12 +65,10 @@ public class OpenTracing0_33_BraveTracerTest {
 
   List<zipkin2.Span> spans = new ArrayList<>();
   Tracing brave = Tracing.newBuilder()
-      .currentTraceContext(ThreadLocalCurrentTraceContext.newBuilder()
-          .addScopeDecorator(StrictScopeDecorator.create())
-          .build())
-      .propagationFactory(ExtraFieldPropagation.newFactoryBuilder(B3Propagation.FACTORY)
-          .addPrefixedFields("baggage-", Arrays.asList("country-code", "user-id"))
-          .build())
+      .currentTraceContext(StrictCurrentTraceContext.create())
+      .propagationFactory(BaggagePropagation.newFactoryBuilder(B3Propagation.FACTORY)
+          .addRemoteField(BaggageField.create("country-code"), "baggage-country-code")
+          .addRemoteField(BaggageField.create("user-id"), "baggage-user-id").build())
       .spanReporter(spans::add)
       .build();
   BraveTracer opentracing = BraveTracer.create(brave);

@@ -34,12 +34,15 @@ Firstly, you need a Tracer, configured to [report to Zipkin](https://github.com/
 sender = OkHttpSender.create("http://127.0.0.1:9411/api/v2/spans");
 spanReporter = AsyncReporter.create(sender);
 
-// If you want to support baggage, indicate the fields you'd like to
-// whitelist, in this case "country-code" and "user-id". On the wire,
-// they will be prefixed like "baggage-country-code"
-propagationFactory = ExtraFieldPropagation.newFactoryBuilder(B3Propagation.FACTORY)
-                                .addPrefixedFields("baggage-", Arrays.asList("country-code", "user-id"))
-                                .build();
+// If you want to support baggage, create a field you would like to
+// propagate and configure it with `BaggagePropagation`
+COUNTRY_CODE = BaggageField.create("country-code");
+
+// Baggage does not need to be sent remotely via headers, but if you configure
+// with `addRemoteField()`, it will be
+propagationFactory = BaggagePropagation.newFactoryBuilder(B3Propagation.FACTORY)
+                                       .addRemoteField(COUNTRY_CODE)
+                                       .build()
 
 // Now, create a Brave tracing component with the service name you want to see in Zipkin.
 //   (the dependency is io.zipkin.brave:brave)
@@ -51,9 +54,11 @@ braveTracing = Tracing.newBuilder()
 
 // use this to create an OpenTracing Tracer
 tracer = BraveTracer.create(braveTracing);
+countryCode = span.getBaggageItem(COUNTRY_CODE.name());
 
 // You can later unwrap the underlying Brave Api as needed
 braveTracing = tracer.unwrap();
+countryCode = COUNTRY_CODE.get(span.unwrap().context());
 ```
 
 Note: If you haven't updated to a server running the [Zipkin v2 api](https://zipkin.io/zipkin-api/#/default/post_spans), you
