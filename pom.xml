@@ -31,7 +31,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.build.resourceEncoding>UTF-8</project.build.resourceEncoding>
 
-    <brave.version>5.9.2</brave.version>
+    <brave.version>5.10.3-SNAPSHOT</brave.version>
 
     <!-- default bytecode version for src/main -->
     <main.java.version>1.6</main.java.version>

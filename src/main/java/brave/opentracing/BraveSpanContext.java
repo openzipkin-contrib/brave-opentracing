@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2019 The OpenZipkin Authors
+ * Copyright 2016-2020 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -14,11 +14,16 @@
 package brave.opentracing;
 
 import brave.Span;
-import brave.propagation.ExtraFieldPropagation;
+import brave.baggage.BaggageField;
+import brave.baggage.BaggagePropagation;
+import brave.internal.Nullable;
 import brave.propagation.TraceContext;
 import brave.propagation.TraceContextOrSamplingFlags;
 import io.opentracing.SpanContext;
 import io.opentracing.propagation.Format;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -45,7 +50,7 @@ public abstract class BraveSpanContext implements SpanContext {
    */
   public abstract TraceContext unwrap();
 
-  /** Returns empty unless {@link ExtraFieldPropagation} is in use */
+  /** Returns empty unless {@link BaggagePropagation} is in use */
   @Override public abstract Iterable<Map.Entry<String, String>> baggageItems();
 
   static BraveSpanContext create(TraceContext context) {
@@ -59,7 +64,7 @@ public abstract class BraveSpanContext implements SpanContext {
   }
 
   static final class Complete extends BraveSpanContext {
-    private final TraceContext context;
+    final TraceContext context;
 
     Complete(TraceContext context) {
       this.context = context;
@@ -79,13 +84,12 @@ public abstract class BraveSpanContext implements SpanContext {
     }
 
     @Override public Iterable<Map.Entry<String, String>> baggageItems() {
-      return ExtraFieldPropagation.getAll(context).entrySet();
+      return BaggageItems.CONTEXT.baggageItems(context);
     }
   }
 
   static final class Incomplete extends BraveSpanContext {
-
-    private final TraceContextOrSamplingFlags extractionResult;
+    final TraceContextOrSamplingFlags extractionResult;
 
     Incomplete(TraceContextOrSamplingFlags extractionResult) {
       this.extractionResult = extractionResult;
@@ -110,9 +114,45 @@ public abstract class BraveSpanContext implements SpanContext {
       return context != null ? context.spanIdString() : null;
     }
 
-    /** Returns empty unless {@link ExtraFieldPropagation} is in use */
+    /** Returns empty unless {@link BaggagePropagation} is in use */
     @Override public Iterable<Map.Entry<String, String>> baggageItems() {
-      return ExtraFieldPropagation.getAll(extractionResult).entrySet();
+      return BaggageItems.EXTRACTION.baggageItems(extractionResult);
+    }
+  }
+
+  enum BaggageItems {
+    CONTEXT() {
+      @Override List<BaggageField> getAll(Object input) {
+        return BaggageField.getAll((TraceContext) input);
+      }
+
+      @Override String getValue(BaggageField field, Object input) {
+        return field.getValue((TraceContext) input);
+      }
+    },
+    EXTRACTION() {
+      @Override List<BaggageField> getAll(Object input) {
+        return BaggageField.getAll((TraceContextOrSamplingFlags) input);
+      }
+
+      @Override String getValue(BaggageField field, Object input) {
+        return field.getValue((TraceContextOrSamplingFlags) input);
+      }
+    };
+
+    abstract List<BaggageField> getAll(Object input);
+
+    @Nullable abstract String getValue(BaggageField field, Object input);
+
+    Iterable<Map.Entry<String, String>> baggageItems(Object input) {
+      List<BaggageField> fields = getAll(input);
+      if (fields.isEmpty()) return Collections.emptyList();
+      Map<String, String> baggage = new LinkedHashMap<>();
+      for (BaggageField field : fields) {
+        String value = getValue(field, input);
+        if (value != null) baggage.put(field.name(), value);
+      }
+      return baggage.entrySet();
     }
   }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2019 The OpenZipkin Authors
+ * Copyright 2016-2020 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -14,10 +14,10 @@
 package brave.opentracing;
 
 import brave.Tracing;
+import brave.baggage.BaggageField;
+import brave.baggage.BaggagePropagation;
 import brave.propagation.B3Propagation;
-import brave.propagation.ExtraFieldPropagation;
-import brave.propagation.StrictScopeDecorator;
-import brave.propagation.ThreadLocalCurrentTraceContext;
+import brave.propagation.StrictCurrentTraceContext;
 import brave.sampler.Sampler;
 import com.tngtech.java.junit.dataprovider.DataProvider;
 import com.tngtech.java.junit.dataprovider.DataProviderRunner;
@@ -57,10 +57,9 @@ public class OpenTracing0_33_BraveSpanTest {
     if (brave != null) brave.close();
     brave = tracingBuilder
         .localServiceName("tracer")
-        .currentTraceContext(ThreadLocalCurrentTraceContext.newBuilder()
-            .addScopeDecorator(StrictScopeDecorator.create())
-            .build())
-        .propagationFactory(ExtraFieldPropagation.newFactory(B3Propagation.FACTORY, "client-id"))
+        .currentTraceContext(StrictCurrentTraceContext.create())
+        .propagationFactory(BaggagePropagation.newFactoryBuilder(B3Propagation.FACTORY)
+            .addRemoteField(BaggageField.create("client-id")).build())
         .spanReporter(spans::add).build();
     tracer = BraveTracer.create(brave);
   }
@@ -369,5 +368,4 @@ public class OpenTracing0_33_BraveSpanTest {
     tracer.buildSpan("encode")
         .withTag(exceptionTag, new RuntimeException("ice cream"));
   }
-
 }

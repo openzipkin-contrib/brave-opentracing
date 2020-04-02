@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2019 The OpenZipkin Authors
+ * Copyright 2016-2020 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -20,7 +20,7 @@ import io.opentracing.SpanContext;
 import org.junit.After;
 import org.junit.Test;
 
-import static org.assertj.core.api.Java6Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class OpenTracing0_33_BraveSpanBuilderTest {
   Tracing tracing = Tracing.newBuilder().build();
@@ -34,7 +34,8 @@ public class OpenTracing0_33_BraveSpanBuilderTest {
     BraveSpanBuilder builder = newSpanBuilder().asChildOf((SpanContext) null);
 
     assertThat(builder)
-        .isEqualToComparingFieldByFieldRecursively(newSpanBuilder());
+        .usingRecursiveComparison()
+        .isEqualTo(newSpanBuilder());
   }
 
   /** Ensures when the caller invokes with null, nothing happens */
@@ -42,15 +43,16 @@ public class OpenTracing0_33_BraveSpanBuilderTest {
     BraveSpanBuilder builder = newSpanBuilder().asChildOf((Span) null);
 
     assertThat(builder)
-        .isEqualToComparingFieldByFieldRecursively(newSpanBuilder());
+        .usingRecursiveComparison()
+        .isEqualTo(newSpanBuilder());
   }
 
   /** Ensures when the caller invokes with null, nothing happens */
   @Test public void addReference_nullContext_noop() {
     BraveSpanBuilder builder = newSpanBuilder().addReference(References.CHILD_OF, null);
 
-    assertThat(builder)
-        .isEqualToComparingFieldByFieldRecursively(newSpanBuilder());
+    assertThat(builder).usingRecursiveComparison()
+        .isEqualTo(newSpanBuilder());
   }
 
   BraveSpanBuilder newSpanBuilder() {
