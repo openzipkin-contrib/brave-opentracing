@@ -24,7 +24,7 @@
   <description>Zipkin OpenTracing Brave bridge</description>
   <inceptionYear>2016</inceptionYear>
 
-  <version>0.36.1</version>
+  <version>0.36.2-SNAPSHOT</version>
 
   <properties>
     <main.basedir>${project.basedir}</main.basedir>
@@ -71,7 +71,7 @@
     <url>https://github.com/openzipkin-contrib/brave-opentracing</url>
     <connection>scm:git:https://github.com/openzipkin-contrib/brave-opentracing.git</connection>
     <developerConnection>scm:git:https://github.com/openzipkin-contrib/brave-opentracing.git</developerConnection>
-    <tag>0.36.1</tag>
+    <tag>HEAD</tag>
   </scm>
 
   <!-- Developer section is needed for Maven Central, but doesn't need to include each person -->
