@@ -16,6 +16,7 @@ package brave.opentracing;
 import brave.Tracing;
 import brave.baggage.BaggageField;
 import brave.baggage.BaggagePropagation;
+import brave.baggage.BaggagePropagationConfig.SingleBaggageField;
 import brave.propagation.B3Propagation;
 import brave.propagation.StrictCurrentTraceContext;
 import brave.sampler.Sampler;
@@ -59,7 +60,8 @@ public class OpenTracing0_33_BraveSpanTest {
         .localServiceName("tracer")
         .currentTraceContext(StrictCurrentTraceContext.create())
         .propagationFactory(BaggagePropagation.newFactoryBuilder(B3Propagation.FACTORY)
-            .addRemoteField(BaggageField.create("client-id")).build())
+            .add(SingleBaggageField.remote(BaggageField.create("client-id")))
+            .build())
         .spanReporter(spans::add).build();
     tracer = BraveTracer.create(brave);
   }

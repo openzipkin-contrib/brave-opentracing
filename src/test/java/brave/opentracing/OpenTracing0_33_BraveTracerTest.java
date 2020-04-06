@@ -18,6 +18,7 @@ import brave.Tracer.SpanInScope;
 import brave.Tracing;
 import brave.baggage.BaggageField;
 import brave.baggage.BaggagePropagation;
+import brave.baggage.BaggagePropagationConfig;
 import brave.propagation.B3Propagation;
 import brave.propagation.Propagation;
 import brave.propagation.StrictCurrentTraceContext;
@@ -58,6 +59,8 @@ import static org.junit.Assert.assertEquals;
  */
 @RunWith(DataProviderRunner.class)
 public class OpenTracing0_33_BraveTracerTest {
+  BaggageField countryCodeField = BaggageField.create("country-code");
+  BaggageField userIdField = BaggageField.create("user-id");
   TraceContext context = TraceContext.newBuilder()
       .traceId(1L)
       .spanId(2L)
@@ -67,8 +70,11 @@ public class OpenTracing0_33_BraveTracerTest {
   Tracing brave = Tracing.newBuilder()
       .currentTraceContext(StrictCurrentTraceContext.create())
       .propagationFactory(BaggagePropagation.newFactoryBuilder(B3Propagation.FACTORY)
-          .addRemoteField(BaggageField.create("country-code"), "baggage-country-code")
-          .addRemoteField(BaggageField.create("user-id"), "baggage-user-id").build())
+          .add(BaggagePropagationConfig.SingleBaggageField.newBuilder(countryCodeField)
+              .addKeyName(countryCodeField.name()).addKeyName("baggage-country-code").build())
+          .add(BaggagePropagationConfig.SingleBaggageField.newBuilder(userIdField)
+              .addKeyName(userIdField.name()).addKeyName("baggage-user-id").build())
+          .build())
       .spanReporter(spans::add)
       .build();
   BraveTracer opentracing = BraveTracer.create(brave);
