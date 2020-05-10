@@ -14,8 +14,7 @@
 package brave.opentracing;
 
 import brave.Tracing;
-import brave.baggage.BaggageField;
-import brave.internal.InternalBaggage;
+import brave.baggage.BaggagePropagation;
 import brave.propagation.B3SingleFormat;
 import brave.propagation.CurrentTraceContext;
 import brave.propagation.Propagation;
@@ -36,6 +35,7 @@ import io.opentracing.propagation.TextMap;
 import java.nio.charset.Charset;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -154,17 +154,19 @@ public final class BraveTracer implements Tracer {
     tracing = b.tracing;
     delegate = b.tracing.tracer();
     scopeManager = OpenTracingVersion.get().scopeManager(b.tracing);
-    BaggageField.create("foo"); // ensure the below instance exists
-    Set<String> allKeyNames = InternalBaggage.instance.allKeyNames(tracing.propagationFactory());
+    Set<String> lcPropagationKeys = new LinkedHashSet<>();
+    for (String keyName : BaggagePropagation.allKeyNames(tracing.propagation())) {
+      lcPropagationKeys.add(keyName.toLowerCase(Locale.ROOT));
+    }
     for (Map.Entry<Format<TextMap>, Propagation<String>> entry : b.formatToPropagation.entrySet()) {
       formatToInjector.put(entry.getKey(), entry.getValue().injector(TEXT_MAP_SETTER));
-      formatToExtractor.put(entry.getKey(), new ExtractorAdaptor(entry.getValue(), allKeyNames));
+      formatToExtractor.put(entry.getKey(), new ExtractorAdaptor(entry.getValue(), lcPropagationKeys));
     }
 
     // Now, go back and make sure the special inject/extract forms work
     for (Propagation<String> propagation : b.formatToPropagation.values()) {
       formatToInjector.put(TEXT_MAP_INJECT, propagation.injector(TEXT_MAP_SETTER));
-      formatToExtractor.put(TEXT_MAP_EXTRACT, new ExtractorAdaptor(propagation, allKeyNames));
+      formatToExtractor.put(TEXT_MAP_EXTRACT, new ExtractorAdaptor(propagation, lcPropagationKeys));
     }
 
     // Finally add binary support

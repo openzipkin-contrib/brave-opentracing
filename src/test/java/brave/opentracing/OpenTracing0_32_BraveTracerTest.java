@@ -20,9 +20,8 @@ import brave.baggage.BaggagePropagationConfig;
 import brave.propagation.B3Propagation;
 import brave.propagation.StrictCurrentTraceContext;
 import brave.propagation.TraceContext;
+import brave.test.TestSpanHandler;
 import io.opentracing.Scope;
-import java.util.ArrayList;
-import java.util.List;
 import org.junit.After;
 import org.junit.Test;
 
@@ -32,21 +31,24 @@ import static org.junit.Assert.assertEquals;
 public class OpenTracing0_32_BraveTracerTest {
   BaggageField countryCodeField = BaggageField.create("country-code");
   BaggageField userIdField = BaggageField.create("user-id");
-  List<zipkin2.Span> spans = new ArrayList<>();
+  StrictCurrentTraceContext currentTraceContext = StrictCurrentTraceContext.create();
+  TestSpanHandler spans = new TestSpanHandler();
   Tracing brave = Tracing.newBuilder()
-      .currentTraceContext(StrictCurrentTraceContext.create())
+      .currentTraceContext(currentTraceContext)
+      .addSpanHandler(spans)
       .propagationFactory(BaggagePropagation.newFactoryBuilder(B3Propagation.FACTORY)
           .add(BaggagePropagationConfig.SingleBaggageField.newBuilder(countryCodeField)
               .addKeyName(countryCodeField.name()).addKeyName("baggage-country-code").build())
           .add(BaggagePropagationConfig.SingleBaggageField.newBuilder(userIdField)
               .addKeyName(userIdField.name()).addKeyName("baggage-user-id").build())
           .build())
-      .spanReporter(spans::add)
       .build();
+
   BraveTracer opentracing = BraveTracer.create(brave);
 
   @After public void clear() {
     brave.close();
+    currentTraceContext.close();
   }
 
   @Test public void versionIsCorrect() {

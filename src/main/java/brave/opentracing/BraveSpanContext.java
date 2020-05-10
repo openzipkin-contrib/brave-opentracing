@@ -16,14 +16,10 @@ package brave.opentracing;
 import brave.Span;
 import brave.baggage.BaggageField;
 import brave.baggage.BaggagePropagation;
-import brave.internal.Nullable;
 import brave.propagation.TraceContext;
 import brave.propagation.TraceContextOrSamplingFlags;
 import io.opentracing.SpanContext;
 import io.opentracing.propagation.Format;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -84,7 +80,7 @@ public abstract class BraveSpanContext implements SpanContext {
     }
 
     @Override public Iterable<Map.Entry<String, String>> baggageItems() {
-      return BaggageItems.CONTEXT.baggageItems(context);
+      return BaggageField.getAllValues(context).entrySet();
     }
   }
 
@@ -116,43 +112,7 @@ public abstract class BraveSpanContext implements SpanContext {
 
     /** Returns empty unless {@link BaggagePropagation} is in use */
     @Override public Iterable<Map.Entry<String, String>> baggageItems() {
-      return BaggageItems.EXTRACTION.baggageItems(extractionResult);
-    }
-  }
-
-  enum BaggageItems {
-    CONTEXT() {
-      @Override List<BaggageField> getAll(Object input) {
-        return BaggageField.getAll((TraceContext) input);
-      }
-
-      @Override String getValue(BaggageField field, Object input) {
-        return field.getValue((TraceContext) input);
-      }
-    },
-    EXTRACTION() {
-      @Override List<BaggageField> getAll(Object input) {
-        return BaggageField.getAll((TraceContextOrSamplingFlags) input);
-      }
-
-      @Override String getValue(BaggageField field, Object input) {
-        return field.getValue((TraceContextOrSamplingFlags) input);
-      }
-    };
-
-    abstract List<BaggageField> getAll(Object input);
-
-    @Nullable abstract String getValue(BaggageField field, Object input);
-
-    Iterable<Map.Entry<String, String>> baggageItems(Object input) {
-      List<BaggageField> fields = getAll(input);
-      if (fields.isEmpty()) return Collections.emptyList();
-      Map<String, String> baggage = new LinkedHashMap<>();
-      for (BaggageField field : fields) {
-        String value = getValue(field, input);
-        if (value != null) baggage.put(field.name(), value);
-      }
-      return baggage.entrySet();
+      return BaggageField.getAllValues(extractionResult).entrySet();
     }
   }
 

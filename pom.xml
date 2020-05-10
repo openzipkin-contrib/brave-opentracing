@@ -31,7 +31,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.build.resourceEncoding>UTF-8</project.build.resourceEncoding>
 
-    <brave.version>5.11.2</brave.version>
+    <brave.version>5.12.0-SNAPSHOT</brave.version>
 
     <!-- default bytecode version for src/main -->
     <main.java.version>1.6</main.java.version>
@@ -47,7 +47,7 @@
 
     <!-- versions needed also for integration tests -->
     <junit.version>4.13</junit.version>
-    <assertj.version>3.14.0</assertj.version>
+    <assertj.version>3.16.1</assertj.version>
     <mockito.version>2.28.2</mockito.version>
     <junit-dataprovider.version>1.13.1</junit-dataprovider.version>
     <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
@@ -98,6 +98,17 @@
     <system>Github</system>
     <url>https://github.com/openzipkin-contrib/brave-opentracing/issues</url>
   </issueManagement>
+
+  <repositories>
+    <repository>
+      <id>jcenter-snapshots</id>
+      <name>jcenter</name>
+      <url>http://oss.jfrog.org/artifactory/oss-snapshot-local/</url>
+      <releases>
+        <enabled>false</enabled>
+      </releases>
+    </repository>
+  </repositories>
 
   <dependencyManagement>
     <dependencies>
@@ -161,7 +172,7 @@
         <artifactId>maven</artifactId>
         <version>0.7.7</version>
         <configuration>
-          <maven>3.6.2</maven>
+          <maven>3.6.3</maven>
         </configuration>
       </plugin>
 
@@ -458,6 +469,31 @@
                   <goal>jar</goal>
                 </goals>
                 <phase>package</phase>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
+      <id>sonatype</id>
+      <distributionManagement>
+        <repository>
+          <id>sonatype</id>
+          <url>https://oss.sonatype.org/service/local/staging/deploy/maven2</url>
+        </repository>
+      </distributionManagement>
+      <build>
+        <plugins>
+          <plugin>
+            <artifactId>maven-gpg-plugin</artifactId>
+            <version>1.6</version>
+            <executions>
+              <execution>
+                <id>sign-release-artifacts</id>
+                <goals>
+                  <goal>sign</goal>
+                </goals>
               </execution>
             </executions>
           </plugin>

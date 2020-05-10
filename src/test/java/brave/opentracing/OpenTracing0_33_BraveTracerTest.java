@@ -23,6 +23,7 @@ import brave.propagation.B3Propagation;
 import brave.propagation.Propagation;
 import brave.propagation.StrictCurrentTraceContext;
 import brave.propagation.TraceContext;
+import brave.test.TestSpanHandler;
 import com.tngtech.java.junit.dataprovider.DataProvider;
 import com.tngtech.java.junit.dataprovider.DataProviderRunner;
 import com.tngtech.java.junit.dataprovider.UseDataProvider;
@@ -31,14 +32,11 @@ import io.opentracing.propagation.Format;
 import io.opentracing.propagation.TextMap;
 import io.opentracing.propagation.TextMapAdapter;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import org.junit.After;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import zipkin2.Annotation;
 
 import static io.opentracing.propagation.BinaryAdapters.extractionCarrier;
 import static io.opentracing.propagation.BinaryAdapters.injectionCarrier;
@@ -48,6 +46,7 @@ import static io.opentracing.propagation.Format.Builtin.HTTP_HEADERS;
 import static io.opentracing.propagation.Format.Builtin.TEXT_MAP;
 import static io.opentracing.propagation.Format.Builtin.TEXT_MAP_EXTRACT;
 import static io.opentracing.propagation.Format.Builtin.TEXT_MAP_INJECT;
+import static io.opentracing.tag.Tags.ERROR;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.failBecauseExceptionWasNotThrown;
 import static org.assertj.core.data.MapEntry.entry;
@@ -66,21 +65,24 @@ public class OpenTracing0_33_BraveTracerTest {
       .spanId(2L)
       .sampled(true).build();
 
-  List<zipkin2.Span> spans = new ArrayList<>();
+  StrictCurrentTraceContext currentTraceContext = StrictCurrentTraceContext.create();
+  TestSpanHandler spans = new TestSpanHandler();
   Tracing brave = Tracing.newBuilder()
-      .currentTraceContext(StrictCurrentTraceContext.create())
+      .currentTraceContext(currentTraceContext)
+      .addSpanHandler(spans)
       .propagationFactory(BaggagePropagation.newFactoryBuilder(B3Propagation.FACTORY)
           .add(BaggagePropagationConfig.SingleBaggageField.newBuilder(countryCodeField)
               .addKeyName(countryCodeField.name()).addKeyName("baggage-country-code").build())
           .add(BaggagePropagationConfig.SingleBaggageField.newBuilder(userIdField)
               .addKeyName(userIdField.name()).addKeyName("baggage-user-id").build())
           .build())
-      .spanReporter(spans::add)
       .build();
+
   BraveTracer opentracing = BraveTracer.create(brave);
 
   @After public void clear() {
     brave.close();
+    currentTraceContext.close();
   }
 
   @Test public void versionIsCorrect() {
@@ -268,12 +270,10 @@ public class OpenTracing0_33_BraveTracerTest {
   void checkSpanReportedToZipkin() {
     assertThat(spans).first().satisfies(s -> {
           assertThat(s.name()).isEqualTo("encode");
-          assertThat(s.timestamp()).isEqualTo(1L);
-          assertThat(s.annotations())
-              .containsExactly(Annotation.create(2L, "pump fake"));
-          assertThat(s.tags())
-              .containsExactly(entry("lc", "codec"));
-          assertThat(s.duration()).isEqualTo(2L);
+          assertThat(s.startTimestamp()).isEqualTo(1L);
+          assertThat(s.annotations()).containsExactly(entry(2L, "pump fake"));
+          assertThat(s.tags()).containsExactly(entry("lc", "codec"));
+          assertThat(s.finishTimestamp()).isEqualTo(3L);
         }
     );
   }
@@ -398,7 +398,7 @@ public class OpenTracing0_33_BraveTracerTest {
   @Test public void ignoresErrorFalseTag_afterStart() {
     opentracing.buildSpan("encode")
         .start()
-        .setTag("error", false)
+        .setTag(ERROR, false)
         .finish();
 
     assertThat(spans.get(0).tags())

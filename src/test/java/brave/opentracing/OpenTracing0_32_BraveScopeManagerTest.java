@@ -16,25 +16,24 @@ package brave.opentracing;
 import brave.ScopedSpan;
 import brave.Tracing;
 import brave.propagation.StrictCurrentTraceContext;
+import brave.test.TestSpanHandler;
 import io.opentracing.Scope;
-import java.util.ArrayList;
-import java.util.List;
 import org.junit.After;
 import org.junit.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class OpenTracing0_32_BraveScopeManagerTest {
-  List<zipkin2.Span> spans = new ArrayList<>();
+  StrictCurrentTraceContext currentTraceContext = StrictCurrentTraceContext.create();
+  TestSpanHandler spans = new TestSpanHandler();
   Tracing brave = Tracing.newBuilder()
-      .currentTraceContext(StrictCurrentTraceContext.create())
-      .spanReporter(spans::add)
-      .build();
+      .currentTraceContext(currentTraceContext).addSpanHandler(spans).build();
 
   BraveTracer opentracing = BraveTracer.create(brave);
 
   @After public void clear() {
     brave.close();
+    currentTraceContext.close();
   }
 
   @Test public void scopeManagerActive() {
