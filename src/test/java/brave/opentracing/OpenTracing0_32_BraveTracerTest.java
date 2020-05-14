@@ -22,6 +22,11 @@ import brave.propagation.StrictCurrentTraceContext;
 import brave.propagation.TraceContext;
 import brave.test.TestSpanHandler;
 import io.opentracing.Scope;
+import io.opentracing.propagation.Format;
+import io.opentracing.propagation.TextMapAdapter;
+import io.opentracing.tag.Tags;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import org.junit.After;
 import org.junit.Test;
 
@@ -149,5 +154,20 @@ public class OpenTracing0_32_BraveTracerTest {
       assertThat(span.unwrap().context().parentId())
           .isNull(); // new trace
     }
+  }
+
+  @Test public void injectRemoteSpanTraceContext() {
+    BraveSpan openTracingSpan = opentracing.buildSpan("encode")
+        .withTag("lc", "codec")
+        .withTag(Tags.SPAN_KIND, Tags.SPAN_KIND_PRODUCER)
+        .withStartTimestamp(1L).start();
+
+    Map<String, String> map = new LinkedHashMap<>();
+    TextMapAdapter request = new TextMapAdapter(map);
+    opentracing.inject(openTracingSpan.context(), Format.Builtin.HTTP_HEADERS, request);
+
+    assertThat(map).containsOnlyKeys("b3");
+
+    openTracingSpan.unwrap().abandon();
   }
 }

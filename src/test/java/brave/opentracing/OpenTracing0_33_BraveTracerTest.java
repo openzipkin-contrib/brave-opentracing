@@ -31,6 +31,7 @@ import io.opentracing.Scope;
 import io.opentracing.propagation.Format;
 import io.opentracing.propagation.TextMap;
 import io.opentracing.propagation.TextMapAdapter;
+import io.opentracing.tag.Tags;
 import java.nio.ByteBuffer;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -363,7 +364,7 @@ public class OpenTracing0_33_BraveTracerTest {
     BraveSpan spanA = opentracing.buildSpan("spanA").start();
     try (Scope scopeA = opentracing.activateSpan(spanA)) {
       assertThat(opentracing.activeSpan())
-          .isEqualToComparingFieldByField(opentracing.scopeManager().activeSpan());
+          .isNotEqualTo(opentracing.scopeManager().activeSpan());
     }
   }
 
@@ -403,5 +404,20 @@ public class OpenTracing0_33_BraveTracerTest {
 
     assertThat(spans.get(0).tags())
         .isEmpty();
+  }
+
+  @Test public void injectRemoteSpanTraceContext() {
+    BraveSpan openTracingSpan = opentracing.buildSpan("encode")
+        .withTag("lc", "codec")
+        .withTag(Tags.SPAN_KIND, Tags.SPAN_KIND_PRODUCER)
+        .withStartTimestamp(1L).start();
+
+    Map<String, String> map = new LinkedHashMap<>();
+    TextMapAdapter request = new TextMapAdapter(map);
+    opentracing.inject(openTracingSpan.context(), Format.Builtin.HTTP_HEADERS, request);
+
+    assertThat(map).containsOnlyKeys("b3");
+
+    openTracingSpan.unwrap().abandon();
   }
 }

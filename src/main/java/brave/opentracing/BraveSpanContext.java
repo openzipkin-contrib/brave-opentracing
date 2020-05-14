@@ -116,6 +116,8 @@ public abstract class BraveSpanContext implements SpanContext {
     }
   }
 
+  volatile Span.Kind kind;
+
   BraveSpanContext() {
   }
 }
