@@ -13,14 +13,13 @@
  */
 package brave.opentracing;
 
+import brave.Span.Kind;
 import brave.Tracing;
-import brave.baggage.BaggageField;
-import brave.internal.InternalBaggage;
+import brave.baggage.BaggagePropagation;
+import brave.opentracing.TextMapPropagation.TextMapExtractor;
 import brave.propagation.B3SingleFormat;
 import brave.propagation.CurrentTraceContext;
 import brave.propagation.Propagation;
-import brave.propagation.Propagation.Getter;
-import brave.propagation.Propagation.Setter;
 import brave.propagation.TraceContext;
 import brave.propagation.TraceContext.Extractor;
 import brave.propagation.TraceContext.Injector;
@@ -33,16 +32,15 @@ import io.opentracing.propagation.BinaryExtract;
 import io.opentracing.propagation.BinaryInject;
 import io.opentracing.propagation.Format;
 import io.opentracing.propagation.TextMap;
+import io.opentracing.propagation.TextMapExtract;
+import io.opentracing.propagation.TextMapInject;
 import java.nio.charset.Charset;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
-import static io.opentracing.propagation.Format.Builtin.BINARY;
-import static io.opentracing.propagation.Format.Builtin.BINARY_EXTRACT;
-import static io.opentracing.propagation.Format.Builtin.BINARY_INJECT;
 import static io.opentracing.propagation.Format.Builtin.TEXT_MAP_EXTRACT;
 import static io.opentracing.propagation.Format.Builtin.TEXT_MAP_INJECT;
 
@@ -147,31 +145,46 @@ public final class BraveTracer implements Tracer {
     }
   }
 
-  final Map<Format<?>, Injector<?>> formatToInjector = new LinkedHashMap<>();
-  final Map<Format<?>, Extractor<?>> formatToExtractor = new LinkedHashMap<>();
+  final Map<Format<?>, Injector<TextMapInject>> formatToInjector = new LinkedHashMap<>();
+  final Map<Format<?>, Injector<TextMapInject>> formatToClientInjector = new LinkedHashMap<>();
+  final Map<Format<?>, Injector<TextMapInject>> formatToProducerInjector = new LinkedHashMap<>();
+  final Map<Format<?>, Injector<TextMapInject>> formatToConsumerInjector = new LinkedHashMap<>();
+  final Map<Format<?>, Extractor<TextMapExtract>> formatToExtractor = new LinkedHashMap<>();
 
   BraveTracer(Builder b) {
     tracing = b.tracing;
     delegate = b.tracing.tracer();
     scopeManager = OpenTracingVersion.get().scopeManager(b.tracing);
-    BaggageField.create("foo"); // ensure the below instance exists
-    Set<String> allKeyNames = InternalBaggage.instance.allKeyNames(tracing.propagationFactory());
+    Set<String> lcPropagationKeys = new LinkedHashSet<>();
+    for (String keyName : BaggagePropagation.allKeyNames(tracing.propagation())) {
+      lcPropagationKeys.add(keyName.toLowerCase(Locale.ROOT));
+    }
     for (Map.Entry<Format<TextMap>, Propagation<String>> entry : b.formatToPropagation.entrySet()) {
-      formatToInjector.put(entry.getKey(), entry.getValue().injector(TEXT_MAP_SETTER));
-      formatToExtractor.put(entry.getKey(), new ExtractorAdaptor(entry.getValue(), allKeyNames));
+      formatToInjector.put(entry.getKey(),
+          entry.getValue().injector(TextMapPropagation.SETTER));
+      formatToClientInjector.put(entry.getKey(),
+          entry.getValue().injector(TextMapPropagation.REMOTE_SETTER.CLIENT));
+      formatToProducerInjector.put(entry.getKey(),
+          entry.getValue().injector(TextMapPropagation.REMOTE_SETTER.PRODUCER));
+      formatToConsumerInjector.put(entry.getKey(),
+          entry.getValue().injector(TextMapPropagation.REMOTE_SETTER.CONSUMER));
+      formatToExtractor.put(entry.getKey(),
+          new TextMapExtractor(entry.getValue(), lcPropagationKeys, TextMapPropagation.GETTER));
     }
 
     // Now, go back and make sure the special inject/extract forms work
     for (Propagation<String> propagation : b.formatToPropagation.values()) {
-      formatToInjector.put(TEXT_MAP_INJECT, propagation.injector(TEXT_MAP_SETTER));
-      formatToExtractor.put(TEXT_MAP_EXTRACT, new ExtractorAdaptor(propagation, allKeyNames));
+      formatToInjector.put(TEXT_MAP_INJECT,
+          propagation.injector(TextMapPropagation.SETTER));
+      formatToClientInjector.put(TEXT_MAP_INJECT,
+          propagation.injector(TextMapPropagation.REMOTE_SETTER.CLIENT));
+      formatToProducerInjector.put(TEXT_MAP_INJECT,
+          propagation.injector(TextMapPropagation.REMOTE_SETTER.PRODUCER));
+      formatToConsumerInjector.put(TEXT_MAP_INJECT,
+          propagation.injector(TextMapPropagation.REMOTE_SETTER.CONSUMER));
+      formatToExtractor.put(TEXT_MAP_EXTRACT,
+          new TextMapExtractor(propagation, lcPropagationKeys, TextMapPropagation.GETTER));
     }
-
-    // Finally add binary support
-    formatToInjector.put(BINARY, BinaryCodec.INSTANCE);
-    formatToInjector.put(BINARY_INJECT, BinaryCodec.INSTANCE);
-    formatToExtractor.put(BINARY, BinaryCodec.INSTANCE);
-    formatToExtractor.put(BINARY_EXTRACT, BinaryCodec.INSTANCE);
   }
 
   /** Returns the underlying {@link Tracing} instance used to configure this. */
@@ -199,12 +212,28 @@ public final class BraveTracer implements Tracer {
    * Injects the underlying context using B3 encoding by default.
    */
   @Override public <C> void inject(SpanContext spanContext, Format<C> format, C carrier) {
-    Injector<C> injector = (Injector<C>) formatToInjector.get(format);
+    BraveSpanContext braveContext = ((BraveSpanContext) spanContext);
+    if (carrier instanceof BinaryInject) {
+      BinaryCodec.INSTANCE.inject(braveContext.unwrap(), (BinaryInject) carrier);
+      return;
+    }
+    if (!(carrier instanceof TextMapInject)) {
+      throw new UnsupportedOperationException(carrier + " not instanceof TextMapInject");
+    }
+    Kind kind = braveContext.kind;
+    Injector<TextMapInject> injector = null;
+    if (Kind.CLIENT.equals(kind)) {
+      injector = formatToClientInjector.get(format);
+    } else if (Kind.PRODUCER.equals(kind)) {
+      injector = formatToProducerInjector.get(format);
+    } else if (Kind.CONSUMER.equals(kind)) {
+      injector = formatToConsumerInjector.get(format);
+    }
+    if (injector == null) injector = formatToInjector.get(format);
     if (injector == null) {
       throw new UnsupportedOperationException(format + " not in " + formatToInjector.keySet());
     }
-    TraceContext traceContext = ((BraveSpanContext) spanContext).unwrap();
-    injector.inject(traceContext, carrier);
+    injector.inject(braveContext.unwrap(), (TextMapInject) carrier);
   }
 
   /**
@@ -212,6 +241,9 @@ public final class BraveTracer implements Tracer {
    * encoded context in the carrier, or upon error extracting it.
    */
   @Override public <C> BraveSpanContext extract(Format<C> format, C carrier) {
+    if (carrier instanceof BinaryExtract) {
+      return BraveSpanContext.create(BinaryCodec.INSTANCE.extract((BinaryExtract) carrier));
+    }
     Extractor<C> extractor = (Extractor<C>) formatToExtractor.get(format);
     if (extractor == null) {
       throw new UnsupportedOperationException(format + " not in " + formatToExtractor.keySet());
@@ -222,55 +254,6 @@ public final class BraveTracer implements Tracer {
 
   @Override public void close() {
     tracing.close();
-  }
-
-  static final Setter<TextMap, String> TEXT_MAP_SETTER = new Setter<TextMap, String>() {
-    @Override public void put(TextMap carrier, String key, String value) {
-      carrier.put(key, value);
-    }
-
-    @Override public String toString() {
-      return "TextMap::put";
-    }
-  };
-
-  static final Getter<Map<String, String>, String> LC_MAP_GETTER =
-      new Getter<Map<String, String>, String>() {
-        @Override public String get(Map<String, String> carrier, String key) {
-          return carrier.get(key.toLowerCase(Locale.ROOT));
-        }
-
-        @Override public String toString() {
-          return "Map::getLowerCase";
-        }
-      };
-
-  /**
-   * Eventhough TextMap is named like Map, it doesn't have a retrieve-by-key method.
-   *
-   * <p>See https://github.com/opentracing/opentracing-java/issues/305
-   */
-  static final class ExtractorAdaptor implements Extractor<TextMap> {
-    final Set<String> allNames;
-    final Extractor<Map<String, String>> delegate;
-
-    ExtractorAdaptor(Propagation<String> propagation, Set<String> allNames) {
-      this.allNames = allNames;
-      this.delegate = propagation.extractor(LC_MAP_GETTER);
-    }
-
-    /** Performs case-insensitive lookup */
-    @Override public TraceContextOrSamplingFlags extract(TextMap entries) {
-      Map<String, String> cache = new LinkedHashMap<>();
-      for (Iterator<Map.Entry<String, String>> it = entries.iterator(); it.hasNext(); ) {
-        Map.Entry<String, String> next = it.next();
-        String inputKey = next.getKey().toLowerCase(Locale.ROOT);
-        if (allNames.contains(inputKey)) {
-          cache.put(inputKey, next.getValue());
-        }
-      }
-      return delegate.extract(cache);
-    }
   }
 
   // Temporary until https://github.com/openzipkin/brave/issues/928

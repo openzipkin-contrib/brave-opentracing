@@ -13,13 +13,16 @@
  */
 package brave.opentracing;
 
+import brave.Span.Kind;
 import brave.Tracing;
 import brave.baggage.BaggageField;
 import brave.baggage.BaggagePropagation;
 import brave.baggage.BaggagePropagationConfig.SingleBaggageField;
+import brave.handler.MutableSpan;
 import brave.propagation.B3Propagation;
 import brave.propagation.StrictCurrentTraceContext;
 import brave.sampler.Sampler;
+import brave.test.TestSpanHandler;
 import com.tngtech.java.junit.dataprovider.DataProvider;
 import com.tngtech.java.junit.dataprovider.DataProviderRunner;
 import com.tngtech.java.junit.dataprovider.UseDataProvider;
@@ -28,16 +31,12 @@ import io.opentracing.SpanContext;
 import io.opentracing.propagation.TextMapAdapter;
 import io.opentracing.tag.Tag;
 import io.opentracing.tag.Tags;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import zipkin2.Endpoint;
-import zipkin2.Span.Kind;
 
 import static io.opentracing.propagation.Format.Builtin.TEXT_MAP;
 import static io.opentracing.tag.Tags.SAMPLING_PRIORITY;
@@ -46,7 +45,8 @@ import static org.assertj.core.api.Assertions.entry;
 
 @RunWith(DataProviderRunner.class)
 public class OpenTracing0_33_BraveSpanTest {
-  List<zipkin2.Span> spans = new ArrayList<>();
+  StrictCurrentTraceContext currentTraceContext = StrictCurrentTraceContext.create();
+  TestSpanHandler spans = new TestSpanHandler();
   Tracing brave;
   BraveTracer tracer;
 
@@ -58,16 +58,17 @@ public class OpenTracing0_33_BraveSpanTest {
     if (brave != null) brave.close();
     brave = tracingBuilder
         .localServiceName("tracer")
-        .currentTraceContext(StrictCurrentTraceContext.create())
+        .currentTraceContext(currentTraceContext)
+        .addSpanHandler(spans)
         .propagationFactory(BaggagePropagation.newFactoryBuilder(B3Propagation.FACTORY)
             .add(SingleBaggageField.remote(BaggageField.create("client-id")))
-            .build())
-        .spanReporter(spans::add).build();
+            .build()).build();
     tracer = BraveTracer.create(brave);
   }
 
   @After public void clear() {
     brave.close();
+    currentTraceContext.close();
   }
 
   @DataProvider
@@ -86,7 +87,7 @@ public class OpenTracing0_33_BraveSpanTest {
         .withTag(Tags.SPAN_KIND.getKey(), tagValue)
         .start().finish();
 
-    zipkin2.Span span = spans.get(0);
+    MutableSpan span = spans.get(0);
     assertThat(span.kind())
         .isEqualTo(kind);
 
@@ -99,7 +100,7 @@ public class OpenTracing0_33_BraveSpanTest {
         .withTag(Tags.SPAN_KIND.getKey(), "antelope")
         .start().finish();
 
-    zipkin2.Span span = spans.get(0);
+    MutableSpan span = spans.get(0);
     assertThat(span.kind())
         .isNull();
 
@@ -114,7 +115,7 @@ public class OpenTracing0_33_BraveSpanTest {
         .setTag(Tags.SPAN_KIND.getKey(), tagValue)
         .finish();
 
-    zipkin2.Span span = spans.get(0);
+    MutableSpan span = spans.get(0);
     assertThat(span.kind())
         .isEqualTo(kind);
 
@@ -128,7 +129,7 @@ public class OpenTracing0_33_BraveSpanTest {
         .setTag(Tags.SPAN_KIND.getKey(), "antelope")
         .finish();
 
-    zipkin2.Span span = spans.get(0);
+    MutableSpan span = spans.get(0);
     assertThat(span.kind())
         .isNull();
 
@@ -169,11 +170,8 @@ public class OpenTracing0_33_BraveSpanTest {
     Map<String, String> carrier = new LinkedHashMap<>();
     tracer.inject(spanClient.context(), TEXT_MAP, new TextMapAdapter(carrier));
 
-    BraveTracer tracer2 = BraveTracer.create(
-        Tracing.newBuilder()
-            .localServiceName("tracer2")
-            .spanReporter(spans::add).build()
-    );
+    Tracing brave2 = Tracing.newBuilder().localServiceName("tracer2").addSpanHandler(spans).build();
+    BraveTracer tracer2 = BraveTracer.create(brave2);
 
     SpanContext extractedContext = tracer2.extract(TEXT_MAP, new TextMapAdapter(carrier));
 
@@ -191,7 +189,8 @@ public class OpenTracing0_33_BraveSpanTest {
     spanClient.finish();
 
     assertThat(spans).hasSize(3);
-    assertThat(spans.get(0).traceId()).isEqualTo(spans.get(1).traceId())
+    assertThat(spans.get(0).traceId())
+        .isEqualTo(spans.get(1).traceId())
         .isEqualTo(spans.get(2).traceId());
     assertThat(spans.get(1).id()).isEqualTo(spans.get(2).id()); // supportsJoin is default
     assertThat(spans.get(0).id()).isNotEqualTo(spans.get(1).id());
@@ -200,6 +199,8 @@ public class OpenTracing0_33_BraveSpanTest {
     assertThat(spans.get(0).localServiceName()).isEqualTo("tracer2");
     assertThat(spans.get(1).localServiceName()).isEqualTo("tracer2");
     assertThat(spans.get(2).localServiceName()).isEqualTo("tracer");
+
+    brave2.close();
   }
 
   @Test public void extractDoesntDropBaggage() {
@@ -276,11 +277,9 @@ public class OpenTracing0_33_BraveSpanTest {
         .withTag(Tags.PEER_PORT.getKey(), 8080)
         .start().finish();
 
-    assertThat(spans.get(0).remoteEndpoint())
-        .isEqualTo(Endpoint.newBuilder()
-            .serviceName("jupiter")
-            .ip("2001:db8::c001")
-            .port(8080).build());
+    assertThat(spans.get(0).remoteServiceName()).isEqualTo("jupiter");
+    assertThat(spans.get(0).remoteIp()).isEqualTo("2001:db8::c001");
+    assertThat(spans.get(0).remotePort()).isEqualTo(8080);
   }
 
   @Test public void setPeerTags_afterStart() {
@@ -292,11 +291,9 @@ public class OpenTracing0_33_BraveSpanTest {
         .setTag(Tags.PEER_PORT.getKey(), 8080)
         .finish();
 
-    assertThat(spans.get(0).remoteEndpoint())
-        .isEqualTo(Endpoint.newBuilder()
-            .serviceName("jupiter")
-            .ip("2001:db8::c001")
-            .port(8080).build());
+    assertThat(spans.get(0).remoteServiceName()).isEqualTo("jupiter");
+    assertThat(spans.get(0).remoteIp()).isEqualTo("2001:db8::c001");
+    assertThat(spans.get(0).remotePort()).isEqualTo(8080);
   }
 
   @Test public void withTag() {

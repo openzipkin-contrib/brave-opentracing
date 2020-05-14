@@ -14,6 +14,8 @@
 package brave.opentracing;
 
 import brave.Tracing;
+import brave.propagation.StrictCurrentTraceContext;
+import brave.test.TestSpanHandler;
 import io.opentracing.References;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
@@ -23,10 +25,14 @@ import org.junit.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class OpenTracing0_33_BraveSpanBuilderTest {
-  Tracing tracing = Tracing.newBuilder().build();
+  StrictCurrentTraceContext currentTraceContext = StrictCurrentTraceContext.create();
+  TestSpanHandler spans = new TestSpanHandler();
+  Tracing brave = Tracing.newBuilder()
+      .currentTraceContext(currentTraceContext).addSpanHandler(spans).build();
 
   @After public void clear() {
-    tracing.close();
+    brave.close();
+    currentTraceContext.close();
   }
 
   /** Ensures when the caller invokes with null, nothing happens */
@@ -57,6 +63,6 @@ public class OpenTracing0_33_BraveSpanBuilderTest {
 
   BraveSpanBuilder newSpanBuilder() {
     // hijacking nullability as tracer isn't referenced until build, making easier comparisons
-    return new BraveSpanBuilder(tracing, "foo");
+    return new BraveSpanBuilder(brave, "foo");
   }
 }

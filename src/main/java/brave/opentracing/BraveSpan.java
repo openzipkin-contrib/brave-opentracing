@@ -13,9 +13,11 @@
  */
 package brave.opentracing;
 
+import brave.Span.Kind;
 import brave.Tracer;
 import brave.baggage.BaggageField;
 import brave.baggage.BaggagePropagation;
+import brave.internal.Nullable;
 import io.opentracing.Span;
 import io.opentracing.tag.Tags;
 import java.util.Iterator;
@@ -33,6 +35,7 @@ import java.util.Map.Entry;
  */
 public final class BraveSpan implements Span {
   private final Tracer tracer;
+  volatile BraveSpanContext context;
   /** Prevents late adding data to a span */
   volatile boolean finishCalled;
   /** Reference invalidated when sampling priority set to 0, which can happen on any thread */
@@ -45,6 +48,7 @@ public final class BraveSpan implements Span {
     this.tracer = tracer;
     if (delegate == null) throw new NullPointerException("delegate == null");
     this.delegate = delegate;
+    this.context = BraveSpanContext.create(delegate.context());
   }
 
   /**
@@ -55,14 +59,19 @@ public final class BraveSpan implements Span {
   }
 
   @Override public BraveSpanContext context() {
-    return BraveSpanContext.create(delegate.context());
+    return context;
   }
 
   @Override public BraveSpan setTag(String key, String value) {
     if (finishCalled) return this;
 
     if (trySetPeer(delegate, key, value)) return this;
-    if (trySetKind(key, value)) return this;
+    Kind kind = trySetKind(key, value);
+    if (kind != null) {
+      delegate.kind(kind);
+      context.kind = kind;
+      return this;
+    }
     delegate.tag(key, value);
     return this;
   }
@@ -89,7 +98,10 @@ public final class BraveSpan implements Span {
     if (Tags.SAMPLING_PRIORITY.getKey().equals(key) && value.intValue() == 0) {
       delegate.abandon();
       // convert the span to no-op
+      Kind kind = context.kind;
       delegate = tracer.toSpan(delegate.context().toBuilder().sampled(false).build());
+      context = BraveSpanContext.create(delegate.context());
+      context.kind = kind;
     }
     return setTag(key, value.toString());
   }
@@ -190,21 +202,22 @@ public final class BraveSpan implements Span {
     return result.toString();
   }
 
-  boolean trySetKind(String key, String value) {
-    if (!Tags.SPAN_KIND.getKey().equals(key)) return false;
+  @Nullable static Kind trySetKind(String key, String value) {
+    if (!Tags.SPAN_KIND.getKey().equals(key)) return null;
 
+    Kind kind;
     if (Tags.SPAN_KIND_CLIENT.equals(value)) {
-      delegate.kind(brave.Span.Kind.CLIENT);
+      kind = Kind.CLIENT;
     } else if (Tags.SPAN_KIND_SERVER.equals(value)) {
-      delegate.kind(brave.Span.Kind.SERVER);
+      kind = Kind.SERVER;
     } else if (Tags.SPAN_KIND_PRODUCER.equals(value)) {
-      delegate.kind(brave.Span.Kind.PRODUCER);
+      kind = Kind.PRODUCER;
     } else if (Tags.SPAN_KIND_CONSUMER.equals(value)) {
-      delegate.kind(brave.Span.Kind.CONSUMER);
+      kind = Kind.CONSUMER;
     } else {
-      return false;
+      return null;
     }
-    return true;
+    return kind;
   }
 
   boolean trySetPeer(brave.Span span, String key, String value) {
@@ -239,5 +252,19 @@ public final class BraveSpan implements Span {
   void trySetRemoteIpAndPort() {
     if (remoteIpV4 != null) delegate.remoteIpAndPort(remoteIpV4, remotePort);
     if (remoteIpV6 != null) delegate.remoteIpAndPort(remoteIpV6, remotePort);
+  }
+
+  @Override public String toString() {
+    return context.toString();
+  }
+
+  @Override public final boolean equals(Object o) {
+    if (o == this) return true;
+    if (!(o instanceof BraveSpan)) return false;
+    return context.equals(((BraveSpan) o).context);
+  }
+
+  @Override public final int hashCode() {
+    return context.hashCode();
   }
 }

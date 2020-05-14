@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2019 The OpenZipkin Authors
+ * Copyright 2016-2020 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -13,7 +13,7 @@
  */
 package brave.opentracing;
 
-import brave.propagation.Propagation;
+import brave.propagation.Propagation.Setter;
 import brave.test.propagation.PropagationSetterTest;
 import io.opentracing.propagation.TextMap;
 import io.opentracing.propagation.TextMapAdapter;
@@ -21,19 +21,15 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 
 /** Verifies the method reference {@link TextMap#put} works as a Brave propagation setter */
-public class TextMapSetterTest extends PropagationSetterTest<TextMap, String> {
+public class TextMapSetterTest extends PropagationSetterTest<TextMap> {
   LinkedHashMap<String, String> delegate = new LinkedHashMap<>();
-  TextMap carrier = new TextMapAdapter(delegate);
+  TextMap request = new TextMapAdapter(delegate);
 
-  @Override public Propagation.KeyFactory<String> keyFactory() {
-    return Propagation.KeyFactory.STRING;
+  @Override protected TextMap request() {
+    return request;
   }
 
-  @Override protected TextMap carrier() {
-    return carrier;
-  }
-
-  @Override protected Propagation.Setter<TextMap, String> setter() {
+  @Override protected Setter<TextMap, String> setter() {
     return TextMap::put;
   }
 
