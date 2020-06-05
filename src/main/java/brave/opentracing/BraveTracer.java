@@ -16,6 +16,7 @@ package brave.opentracing;
 import brave.Span.Kind;
 import brave.Tracing;
 import brave.baggage.BaggagePropagation;
+import brave.internal.Nullable;
 import brave.opentracing.TextMapPropagation.TextMapExtractor;
 import brave.propagation.B3SingleFormat;
 import brave.propagation.CurrentTraceContext;
@@ -150,6 +151,8 @@ public final class BraveTracer implements Tracer {
   final Map<Format<?>, Injector<TextMapInject>> formatToProducerInjector = new LinkedHashMap<>();
   final Map<Format<?>, Injector<TextMapInject>> formatToConsumerInjector = new LinkedHashMap<>();
   final Map<Format<?>, Extractor<TextMapExtract>> formatToExtractor = new LinkedHashMap<>();
+  // When baggage or similar are in use, an empty result != TraceContextOrSamplingFlags.EMPTY
+  final Set<TraceContextOrSamplingFlags> emptyExtractions = new LinkedHashSet<>();
 
   BraveTracer(Builder b) {
     tracing = b.tracing;
@@ -170,6 +173,7 @@ public final class BraveTracer implements Tracer {
           entry.getValue().injector(TextMapPropagation.REMOTE_SETTER.CONSUMER));
       formatToExtractor.put(entry.getKey(),
           new TextMapExtractor(entry.getValue(), lcPropagationKeys, TextMapPropagation.GETTER));
+      emptyExtractions.add(entry.getValue().extractor((c, k) -> null).extract(Boolean.TRUE));
     }
 
     // Now, go back and make sure the special inject/extract forms work
@@ -184,6 +188,7 @@ public final class BraveTracer implements Tracer {
           propagation.injector(TextMapPropagation.REMOTE_SETTER.CONSUMER));
       formatToExtractor.put(TEXT_MAP_EXTRACT,
           new TextMapExtractor(propagation, lcPropagationKeys, TextMapPropagation.GETTER));
+      emptyExtractions.add(propagation.extractor((c, k) -> null).extract(Boolean.TRUE));
     }
   }
 
@@ -240,15 +245,18 @@ public final class BraveTracer implements Tracer {
    * Extracts the underlying context using B3 encoding by default. Null is returned when there is no
    * encoded context in the carrier, or upon error extracting it.
    */
-  @Override public <C> BraveSpanContext extract(Format<C> format, C carrier) {
+  @Nullable @Override public <C> BraveSpanContext extract(Format<C> format, C carrier) {
+    TraceContextOrSamplingFlags extractionResult;
     if (carrier instanceof BinaryExtract) {
-      return BraveSpanContext.create(BinaryCodec.INSTANCE.extract((BinaryExtract) carrier));
+      extractionResult = BinaryCodec.INSTANCE.extract((BinaryExtract) carrier);
+    } else {
+      Extractor<C> extractor = (Extractor<C>) formatToExtractor.get(format);
+      if (extractor == null) {
+        throw new UnsupportedOperationException(format + " not in " + formatToExtractor.keySet());
+      }
+      extractionResult = extractor.extract(carrier);
     }
-    Extractor<C> extractor = (Extractor<C>) formatToExtractor.get(format);
-    if (extractor == null) {
-      throw new UnsupportedOperationException(format + " not in " + formatToExtractor.keySet());
-    }
-    TraceContextOrSamplingFlags extractionResult = extractor.extract(carrier);
+    if (emptyExtractions.contains(extractionResult)) return null;
     return BraveSpanContext.create(extractionResult);
   }
 

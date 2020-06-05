@@ -170,4 +170,24 @@ public class OpenTracing0_32_BraveTracerTest {
 
     openTracingSpan.unwrap().abandon();
   }
+
+  @Test public void extract_null_on_empty() {
+    Map<String, String> map = new LinkedHashMap<>();
+    TextMapAdapter request = new TextMapAdapter(map);
+
+    assertThat(opentracing.extract(Format.Builtin.HTTP_HEADERS, request)).isNull();
+  }
+
+  @Test public void extract_only_baggage() {
+    Map<String, String> map = new LinkedHashMap<>();
+    map.put(countryCodeField.name(), "NO");
+    TextMapAdapter request = new TextMapAdapter(map);
+
+    BraveSpanContext partial = opentracing.extract(Format.Builtin.HTTP_HEADERS, request);
+    assertThat(partial).isNotNull();
+
+    BraveSpan span = opentracing.buildSpan("next").asChildOf(partial).start();
+    assertThat(span.getBaggageItem(countryCodeField.name())).isEqualTo("NO");
+    span.finish();
+  }
 }
