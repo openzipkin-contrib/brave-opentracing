@@ -22,7 +22,6 @@ import io.opentracing.Span;
 import io.opentracing.tag.Tags;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Map.Entry;
 
 /**
  * Holds the {@linkplain brave.Span} used by the underlying {@linkplain brave.Tracer}.
@@ -194,7 +193,7 @@ public final class BraveSpan implements Span {
     if (fields.isEmpty()) return "";
 
     StringBuilder result = new StringBuilder();
-    for (Iterator<? extends Entry<String, ?>> i = fields.entrySet().iterator(); i.hasNext(); ) {
+    for (Iterator<? extends Map.Entry<String, ?>> i = fields.entrySet().iterator(); i.hasNext(); ) {
       Map.Entry<String, ?> next = i.next();
       result.append(next.getKey()).append('=').append(next.getValue());
       if (i.hasNext()) result.append(' ');

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2019 The OpenZipkin Authors
+ * Copyright 2016-2020 The OpenZipkin Authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -27,6 +27,7 @@ final class v0_32_BraveScopeManager extends BraveScopeManager {
   //
   // When scopes are leaked this thread local will prevent this type from being unloaded. This can
   // cause problems in redeployment scenarios. https://github.com/openzipkin/brave/issues/785
+  @SuppressWarnings("ThreadLocalUsage")
   final ThreadLocal<Deque<v0_32_BraveScope>> currentScopes =
       new ThreadLocal<Deque<v0_32_BraveScope>>() {
         @Override protected Deque<v0_32_BraveScope> initialValue() {
