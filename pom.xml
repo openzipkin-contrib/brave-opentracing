@@ -320,7 +320,7 @@
             <configuration>
               <rules>
                 <requireJavaVersion>
-                  <version>[1.8,14)</version>
+                  <version>[1.8,15)</version>
                 </requireJavaVersion>
               </rules>
             </configuration>
