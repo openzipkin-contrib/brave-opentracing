@@ -46,7 +46,7 @@
     <errorprone.version>2.4.0</errorprone.version>
 
     <!-- versions needed also for integration tests -->
-    <junit.version>4.13</junit.version>
+    <junit.version>4.13.1</junit.version>
     <assertj.version>3.16.1</assertj.version>
     <mockito.version>2.28.2</mockito.version>
     <junit-dataprovider.version>1.13.1</junit-dataprovider.version>
