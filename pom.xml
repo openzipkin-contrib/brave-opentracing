@@ -14,7 +14,9 @@
     the License.
 
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>io.opentracing.brave</groupId>
@@ -31,7 +33,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.build.resourceEncoding>UTF-8</project.build.resourceEncoding>
 
-    <brave.version>5.12.3</brave.version>
+    <brave.version>5.13.1</brave.version>
 
     <!-- default bytecode version for src/main -->
     <main.java.version>1.6</main.java.version>
@@ -47,11 +49,12 @@
 
     <!-- versions needed also for integration tests -->
     <junit.version>4.13.1</junit.version>
-    <assertj.version>3.16.1</assertj.version>
-    <mockito.version>2.28.2</mockito.version>
-    <junit-dataprovider.version>1.13.1</junit-dataprovider.version>
+    <assertj.version>3.18.0</assertj.version>
+    <mockito.version>3.6.0</mockito.version>
+    <junit-dataprovider.version>2.6</junit-dataprovider.version>
     <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
-    <maven-surefire-plugin.version>3.0.0-M4</maven-surefire-plugin.version>
+    <maven-surefire-plugin.version>3.0.0-M5</maven-surefire-plugin.version>
+    <nexus-staging-maven-plugin.version>1.6.8</nexus-staging-maven-plugin.version>
   </properties>
 
   <organization>
@@ -70,7 +73,8 @@
   <scm>
     <url>https://github.com/openzipkin-contrib/brave-opentracing</url>
     <connection>scm:git:https://github.com/openzipkin-contrib/brave-opentracing.git</connection>
-    <developerConnection>scm:git:https://github.com/openzipkin-contrib/brave-opentracing.git</developerConnection>
+    <developerConnection>scm:git:https://github.com/openzipkin-contrib/brave-opentracing.git
+    </developerConnection>
     <tag>HEAD</tag>
   </scm>
 
@@ -84,43 +88,20 @@
   </developers>
 
   <distributionManagement>
-    <repository>
-      <id>bintray</id>
-      <url>https://api.bintray.com/maven/opentracing/maven/opentracing-brave/;publish=1</url>
-    </repository>
     <snapshotRepository>
-      <id>jfrog-snapshots</id>
-      <url>https://oss.jfrog.org/artifactory/oss-snapshot-local</url>
+      <id>ossrh</id>
+      <url>https://oss.sonatype.org/content/repositories/snapshots</url>
     </snapshotRepository>
+    <repository>
+      <id>ossrh</id>
+      <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+    </repository>
   </distributionManagement>
 
   <issueManagement>
     <system>Github</system>
     <url>https://github.com/openzipkin-contrib/brave-opentracing/issues</url>
   </issueManagement>
-
-  <repositories>
-    <repository>
-      <id>jcenter-snapshots</id>
-      <name>jcenter</name>
-      <url>http://oss.jfrog.org/artifactory/oss-snapshot-local/</url>
-      <releases>
-        <enabled>false</enabled>
-      </releases>
-    </repository>
-  </repositories>
-
-  <dependencyManagement>
-    <dependencies>
-      <dependency>
-        <groupId>io.zipkin.brave</groupId>
-        <artifactId>brave-bom</artifactId>
-        <version>${brave.version}</version>
-        <type>pom</type>
-        <scope>import</scope>
-      </dependency>
-    </dependencies>
-  </dependencyManagement>
 
   <dependencies>
     <dependency>
@@ -131,6 +112,7 @@
     <dependency>
       <groupId>io.zipkin.brave</groupId>
       <artifactId>brave</artifactId>
+      <version>${brave.version}</version>
     </dependency>
 
     <dependency>
@@ -142,6 +124,7 @@
     <dependency>
       <groupId>io.zipkin.brave</groupId>
       <artifactId>brave-tests</artifactId>
+      <version>${brave.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -157,25 +140,82 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>com.tngtech.java</groupId>
-      <artifactId>junit-dataprovider</artifactId>
+      <groupId>com.tngtech.junit.dataprovider</groupId>
+      <artifactId>junit4-dataprovider</artifactId>
       <version>${junit-dataprovider.version}</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
 
   <build>
-    <plugins>
-      <!-- mvn -N io.takari:maven:wrapper generates the ./mvnw script -->
-      <plugin>
-        <groupId>io.takari</groupId>
-        <artifactId>maven</artifactId>
-        <version>0.7.7</version>
-        <configuration>
-          <maven>3.6.3</maven>
-        </configuration>
-      </plugin>
+    <pluginManagement>
+      <plugins>
+        <!-- mvn -N io.takari:maven:wrapper generates the ./mvnw script -->
+        <plugin>
+          <groupId>io.takari</groupId>
+          <artifactId>maven</artifactId>
+          <version>0.7.7</version>
+          <configuration>
+            <maven>3.6.3</maven>
+          </configuration>
+        </plugin>
 
+        <!-- mvn de.qaware.maven:go-offline-maven-plugin:resolve-dependencies -->
+        <plugin>
+          <groupId>de.qaware.maven</groupId>
+          <artifactId>go-offline-maven-plugin</artifactId>
+          <version>1.2.7</version>
+          <configuration>
+            <dynamicDependencies>
+              <!-- src/it/opentracing-0.31/pom.xml -->
+              <dynamicDependency>
+                <groupId>io.opentracing</groupId>
+                <artifactId>opentracing-api</artifactId>
+                <version>0.31.0</version>
+                <repositoryType>MAIN</repositoryType>
+              </dynamicDependency>
+              <!-- src/it/opentracing-0.33/pom.xml -->
+              <dynamicDependency>
+                <groupId>io.opentracing</groupId>
+                <artifactId>opentracing-api</artifactId>
+                <version>0.33.0</version>
+                <repositoryType>MAIN</repositoryType>
+              </dynamicDependency>
+            </dynamicDependencies>
+          </configuration>
+        </plugin>
+
+        <plugin>
+          <artifactId>maven-install-plugin</artifactId>
+          <version>3.0.0-M1</version>
+        </plugin>
+
+        <!-- Uploads occur as a last step (which also adds checksums) -->
+        <plugin>
+          <artifactId>maven-deploy-plugin</artifactId>
+          <version>3.0.0-M1</version>
+        </plugin>
+
+        <plugin>
+          <artifactId>maven-release-plugin</artifactId>
+          <version>3.0.0-M1</version>
+          <configuration>
+            <useReleaseProfile>false</useReleaseProfile>
+            <releaseProfiles>release</releaseProfiles>
+            <autoVersionSubmodules>true</autoVersionSubmodules>
+            <tagNameFormat>@{project.version}</tagNameFormat>
+          </configuration>
+        </plugin>
+
+        <plugin>
+          <groupId>org.sonatype.plugins</groupId>
+          <artifactId>nexus-staging-maven-plugin</artifactId>
+          <version>${nexus-staging-maven-plugin.version}</version>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+
+    <plugins>
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
         <version>${maven-compiler-plugin.version}</version>
@@ -217,8 +257,9 @@
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>animal-sniffer-maven-plugin</artifactId>
-        <version>1.18</version>
+        <version>1.19</version>
         <configuration>
+          <checkTestClasses>false</checkTestClasses>
           <signature>
             <groupId>org.codehaus.mojo.signature</groupId>
             <artifactId>${main.signature.artifact}</artifactId>
@@ -235,20 +276,9 @@
       </plugin>
 
       <plugin>
-        <artifactId>maven-install-plugin</artifactId>
-        <version>3.0.0-M1</version>
-      </plugin>
-
-      <!-- Uploads occur as a last step (which also adds checksums) -->
-      <plugin>
-        <artifactId>maven-deploy-plugin</artifactId>
-        <version>3.0.0-M1</version>
-      </plugin>
-
-      <plugin>
         <groupId>com.mycila</groupId>
         <artifactId>license-maven-plugin</artifactId>
-        <version>3.0</version>
+        <version>4.0.rc2</version>
         <configuration>
           <header>${main.basedir}/src/etc/header.txt</header>
           <mapping>
@@ -273,7 +303,7 @@
           <dependency>
             <groupId>com.mycila</groupId>
             <artifactId>license-maven-plugin-git</artifactId>
-            <version>3.0</version>
+            <version>4.0.rc2</version>
           </dependency>
         </dependencies>
         <executions>
@@ -287,28 +317,6 @@
       </plugin>
 
       <plugin>
-        <artifactId>maven-release-plugin</artifactId>
-        <version>3.0.0-M1</version>
-        <configuration>
-          <useReleaseProfile>false</useReleaseProfile>
-          <releaseProfiles>release</releaseProfiles>
-          <autoVersionSubmodules>true</autoVersionSubmodules>
-          <tagNameFormat>@{project.version}</tagNameFormat>
-        </configuration>
-      </plugin>
-
-      <plugin>
-        <groupId>io.zipkin.centralsync-maven-plugin</groupId>
-        <artifactId>centralsync-maven-plugin</artifactId>
-        <version>0.1.1</version>
-        <configuration>
-          <subject>opentracing</subject>
-          <repo>maven</repo>
-          <packageName>opentracing-brave</packageName>
-        </configuration>
-      </plugin>
-
-      <plugin>
         <artifactId>maven-enforcer-plugin</artifactId>
         <version>3.0.0-M3</version>
         <executions>
@@ -319,8 +327,10 @@
             </goals>
             <configuration>
               <rules>
+                <!-- Cannot use JDK 15 until Retrolambda supports it
+                     https://github.com/luontola/retrolambda/issues/161 -->
                 <requireJavaVersion>
-                  <version>[1.8,15)</version>
+                  <version>[11,15)</version>
                 </requireJavaVersion>
               </rules>
             </configuration>
@@ -357,53 +367,9 @@
 
   <profiles>
     <profile>
-      <id>error-prone-1.8</id>
+      <id>error-prone</id>
       <activation>
-        <jdk>1.8</jdk>
-        <activeByDefault>false</activeByDefault>
-      </activation>
-      <build>
-        <plugins>
-          <plugin>
-            <artifactId>maven-compiler-plugin</artifactId>
-            <executions>
-              <execution>
-                <!-- only use errorprone on main source tree -->
-                <id>default-compile</id>
-                <phase>compile</phase>
-                <goals>
-                  <goal>compile</goal>
-                </goals>
-                <configuration>
-                  <compilerId>javac-with-errorprone</compilerId>
-                  <forceJavacCompilerUse>true</forceJavacCompilerUse>
-                  <compilerArgs>
-                    <arg>${errorprone.args}</arg>
-                  </compilerArgs>
-                </configuration>
-              </execution>
-            </executions>
-            <dependencies>
-              <dependency>
-                <groupId>org.codehaus.plexus</groupId>
-                <artifactId>plexus-compiler-javac-errorprone</artifactId>
-                <version>2.8.5</version>
-              </dependency>
-              <dependency>
-                <groupId>com.google.errorprone</groupId>
-                <artifactId>error_prone_core</artifactId>
-                <version>${errorprone.version}</version>
-              </dependency>
-            </dependencies>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-    <profile>
-      <id>error-prone-9+</id>
-      <activation>
-        <jdk>[9,)</jdk>
-        <activeByDefault>false</activeByDefault>
+        <activeByDefault>true</activeByDefault>
       </activation>
       <build>
         <plugins>
@@ -437,10 +403,66 @@
         </plugins>
       </build>
     </profile>
+
     <profile>
       <id>release</id>
       <build>
         <plugins>
+          <plugin>
+            <groupId>org.sonatype.plugins</groupId>
+            <artifactId>nexus-staging-maven-plugin</artifactId>
+            <extensions>true</extensions>
+            <configuration>
+              <serverId>ossrh</serverId>
+              <nexusUrl>https://oss.sonatype.org/</nexusUrl>
+              <!-- Double the normal timeout even though we haven't had a problem in this project.
+                   The only outcome of timing out client side is trying again. -->
+              <stagingProgressTimeoutMinutes>10</stagingProgressTimeoutMinutes>
+              <autoReleaseAfterClose>true</autoReleaseAfterClose>
+            </configuration>
+          </plugin>
+
+          <plugin>
+            <artifactId>maven-gpg-plugin</artifactId>
+            <version>1.6</version>
+            <executions>
+              <execution>
+                <id>sign-artifacts</id>
+                <phase>verify</phase>
+                <goals>
+                  <goal>sign</goal>
+                </goals>
+                <configuration>
+                  <gpgArguments>
+                    <arg>--pinentry-mode</arg>
+                    <arg>loopback</arg>
+                  </gpgArguments>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+
+          <plugin>
+            <artifactId>maven-enforcer-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>enforce-java</id>
+                <goals>
+                  <goal>enforce</goal>
+                </goals>
+                <configuration>
+                  <rules>
+                    <!-- JDK 12+ can no longer generate Java 1.6 bytecode, so we require JDK 11.
+                         https://www.oracle.com/java/technologies/javase/12-relnote-issues.html -->
+                    <requireJavaVersion>
+                      <version>[11,12)</version>
+                    </requireJavaVersion>
+                  </rules>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+
           <!-- Creates source jar -->
           <plugin>
             <artifactId>maven-source-plugin</artifactId>
@@ -455,12 +477,15 @@
             </executions>
           </plugin>
 
-          <!-- Creates javadoc jar -->
           <plugin>
             <artifactId>maven-javadoc-plugin</artifactId>
-            <version>3.1.1</version>
+            <version>3.2.0</version>
             <configuration>
               <failOnError>false</failOnError>
+              <!-- hush pedantic warnings: we don't put param and return on everything! -->
+              <doclint>none</doclint>
+              <!-- While we publish modules, our source is pre-Java9 so tell javadoc that. -->
+              <source>8</source>
             </configuration>
             <executions>
               <execution>
@@ -469,31 +494,6 @@
                   <goal>jar</goal>
                 </goals>
                 <phase>package</phase>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-    <profile>
-      <id>sonatype</id>
-      <distributionManagement>
-        <repository>
-          <id>sonatype</id>
-          <url>https://oss.sonatype.org/service/local/staging/deploy/maven2</url>
-        </repository>
-      </distributionManagement>
-      <build>
-        <plugins>
-          <plugin>
-            <artifactId>maven-gpg-plugin</artifactId>
-            <version>1.6</version>
-            <executions>
-              <execution>
-                <id>sign-release-artifacts</id>
-                <goals>
-                  <goal>sign</goal>
-                </goals>
               </execution>
             </executions>
           </plugin>
