@@ -25,6 +25,7 @@
   <name>opentracing-0.33</name>
 
   <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.source>1.8</maven.compiler.source>
     <maven.compiler.target>1.8</maven.compiler.target>
   </properties>
@@ -91,6 +92,10 @@
             <include>**/OpenTracing0_33_*Test.java</include>
           </includes>
         </configuration>
+      </plugin>
+      <plugin>
+        <artifactId>maven-jar-plugin</artifactId>
+        <version>@maven-jar-plugin.version@</version>
       </plugin>
       <plugin>
         <artifactId>maven-surefire-plugin</artifactId>
