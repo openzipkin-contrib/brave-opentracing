@@ -15,7 +15,7 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v2
-        with:  # GH_TOKEN prevents the build of N.M.L tag, which we don't want to deploy anyway
+        with:  # GITHUB_TOKEN does not trigger when pushing tags, but we don't want conflict on the N.M.L tag anyway
           fetch-depth: 1  # only need the base commit as license check isn't run
       - name: Cache local Maven repository
         uses: actions/cache@v2
