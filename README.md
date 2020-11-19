@@ -1,7 +1,8 @@
-[![Build Status](https://travis-ci.org/openzipkin-contrib/brave-opentracing.svg?branch=master)](https://travis-ci.org/openzipkin-contrib/brave-opentracing)
-[![Maven Central](https://img.shields.io/maven-central/v/io.opentracing.brave/brave-opentracing.svg)](https://search.maven.org/search?q=g:io.opentracing.brave%20AND%20a:brave-opentracing)
-
 # OpenTracing Java Bridge for Zipkin
+
+[![Gitter chat](http://img.shields.io/badge/gitter-join%20chat%20%E2%86%92-brightgreen.svg)](https://gitter.im/openzipkin/zipkin)
+[![Build Status](https://github.com/openzipkin-contrib/brave-opentracing/workflows/test/badge.svg)](https://github.com/openzipkin-contrib/brave-opentracing/actions?query=workflow%3Atest)
+[![Maven Central](https://img.shields.io/maven-central/v/io.opentracing.brave/brave-opentracing.svg)](https://search.maven.org/search?q=g:io.opentracing.brave%20AND%20a:brave-opentracing)
 
 This library is a Java bridge between the [Brave/Zipkin Api](https://github.com/openzipkin/brave/tree/master/brave#brave-api-v4) and OpenTracing. It allows its users to write portable (in the [OpenTracing](http://opentracing.io) sense) instrumentation that's translated into Brave instrumentation transparently.
 
@@ -68,13 +69,12 @@ can use the old Zipkin format like this:
 sender = OkHttpSender.json("http://127.0.0.1:9411/api/v1/spans");
 spanReporter = AsyncReporter.builder(sender).build(SpanEncoder.JSON_V1);
 ```
-
 ## Artifacts
 The artifact published is `brave-opentracing` under the group ID `io.opentracing.brave`
 
 ### Library Releases
-Releases are uploaded to [Bintray](https://bintray.com/openzipkin/maven/zipkin) and synchronized to [Maven Cen
-tral](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22io.opentracing.brave%22)
+Releases are at [Sonatype](https://oss.sonatype.org/content/repositories/releases) and [Maven Central](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22io.opentracing.brave%22)
+
 ### Library Snapshots
-Snapshots are uploaded to [JFrog](https://oss.jfrog.org/artifactory/oss-snapshot-local) after commits to maste
-r.
+Snapshots are uploaded to [Sonatype](https://oss.sonatype.org/content/repositories/snapshots) after
+commits to master.
