@@ -30,6 +30,8 @@
     <main.basedir>${project.basedir}</main.basedir>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.build.resourceEncoding>UTF-8</project.build.resourceEncoding>
+    <project.build.outputEncoding>UTF-8</project.build.outputEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
     <brave.version>5.13.1</brave.version>
 
@@ -77,8 +79,7 @@
   <scm>
     <url>https://github.com/openzipkin-contrib/brave-opentracing</url>
     <connection>scm:git:https://github.com/openzipkin-contrib/brave-opentracing.git</connection>
-    <developerConnection>scm:git:https://github.com/openzipkin-contrib/brave-opentracing.git
-    </developerConnection>
+    <developerConnection>scm:git:https://github.com/openzipkin-contrib/brave-opentracing.git</developerConnection>
     <tag>HEAD</tag>
   </scm>
 
@@ -107,7 +108,18 @@
     <url>https://github.com/openzipkin-contrib/brave-opentracing/issues</url>
   </issueManagement>
 
+  <dependencyManagement>
+    <!-- Be careful here, especially to not import BOMs as it causes version confusion.
+
+         For example, if you imported Netty's BOM here, end users would also download that BOM. As
+         Brave is indirectly used, this can be extremely confusing when people are troubleshooting
+         library version assignments. -->
+  </dependencyManagement>
+
   <dependencies>
+    <!-- Only add absolutely required dependencies as compile scope. Adding more can pin versions,
+         causing problems for end users difficult to unravel. -->
+
     <dependency>
       <groupId>io.opentracing</groupId>
       <artifactId>opentracing-api</artifactId>
@@ -177,6 +189,12 @@
                 <artifactId>${main.signature.artifact}</artifactId>
                 <version>1.0</version>
                 <type>signature</type>
+                <repositoryType>MAIN</repositoryType>
+              </DynamicDependency>
+              <DynamicDependency>
+                <groupId>com.google.errorprone</groupId>
+                <artifactId>error_prone_core</artifactId>
+                <version>${errorprone.version}</version>
                 <repositoryType>MAIN</repositoryType>
               </DynamicDependency>
               <DynamicDependency>
