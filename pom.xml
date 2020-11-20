@@ -316,6 +316,7 @@
         <version>${animal-sniffer-maven-plugin.version}</version>
         <configuration>
           <checkTestClasses>false</checkTestClasses>
+          <skip>${skipTests}</skip>
           <signature>
             <groupId>org.codehaus.mojo.signature</groupId>
             <artifactId>${main.signature.artifact}</artifactId>
