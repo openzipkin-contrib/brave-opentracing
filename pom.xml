@@ -51,6 +51,8 @@
     <mockito.version>3.6.0</mockito.version>
     <junit-dataprovider.version>2.6</junit-dataprovider.version>
 
+    <animal-sniffer-maven-plugin.version>1.19</animal-sniffer-maven-plugin.version>
+    <go-offline-maven-plugin.version>1.2.7</go-offline-maven-plugin.version>
     <!-- TODO: cleanup any redundant ignores now also in the 4.0 release (once final) -->
     <license-maven-plugin.version>4.0.rc2</license-maven-plugin.version>
     <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
@@ -166,9 +168,24 @@
         <plugin>
           <groupId>de.qaware.maven</groupId>
           <artifactId>go-offline-maven-plugin</artifactId>
-          <version>1.2.7</version>
+          <version>${go-offline-maven-plugin.version}</version>
           <configuration>
             <dynamicDependencies>
+              <!-- Add dependencies indirectly referenced by build plugins -->
+              <DynamicDependency>
+                <groupId>org.codehaus.mojo.signature</groupId>
+                <artifactId>${main.signature.artifact}</artifactId>
+                <version>1.0</version>
+                <type>signature</type>
+                <repositoryType>MAIN</repositoryType>
+              </DynamicDependency>
+              <DynamicDependency>
+                <groupId>org.apache.maven.surefire</groupId>
+                <artifactId>surefire-junit-platform</artifactId>
+                <version>${maven-surefire-plugin.version}</version>
+                <repositoryType>PLUGIN</repositoryType>
+              </DynamicDependency>
+
               <!-- src/it/opentracing-0.31/pom.xml -->
               <dynamicDependency>
                 <groupId>io.opentracing</groupId>
@@ -270,7 +287,7 @@
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>animal-sniffer-maven-plugin</artifactId>
-        <version>1.19</version>
+        <version>${animal-sniffer-maven-plugin.version}</version>
         <configuration>
           <checkTestClasses>false</checkTestClasses>
           <signature>
