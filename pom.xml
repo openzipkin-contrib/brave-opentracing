@@ -194,6 +194,12 @@
                 <repositoryType>MAIN</repositoryType>
               </DynamicDependency>
               <DynamicDependency>
+                <groupId>com.mycila</groupId>
+                <artifactId>license-maven-plugin-git</artifactId>
+                <version>${license-maven-plugin.version}</version>
+                <repositoryType>MAIN</repositoryType>
+              </DynamicDependency>
+              <DynamicDependency>
                 <groupId>com.google.errorprone</groupId>
                 <artifactId>error_prone_core</artifactId>
                 <version>${errorprone.version}</version>
@@ -379,6 +385,61 @@
           </execution>
         </executions>
       </plugin>
+
+      <plugin>
+        <groupId>com.mycila</groupId>
+        <artifactId>license-maven-plugin</artifactId>
+        <version>${license-maven-plugin.version}</version>
+        <configuration>
+          <skip>${skipTests}</skip>
+          <header>${main.basedir}/src/etc/header.txt</header>
+          <mapping>
+            <!-- Don't use javadoc style as this makes code formatters break it by adding tags! -->
+            <java>SLASHSTAR_STYLE</java>
+            <!-- build-bin/git -->
+            <login_git>SCRIPT_STYLE</login_git>
+            <version_from_trigger_tag>SCRIPT_STYLE</version_from_trigger_tag>
+            <!-- build-bin/gpg -->
+            <configure_gpg>SCRIPT_STYLE</configure_gpg>
+            <!-- build-bin/maven -->
+            <maven_build_or_unjar>SCRIPT_STYLE</maven_build_or_unjar>
+            <maven_deploy>SCRIPT_STYLE</maven_deploy>
+            <maven_go_offline>SCRIPT_STYLE</maven_go_offline>
+            <maven_release>SCRIPT_STYLE</maven_release>
+            <maven_unjar>SCRIPT_STYLE</maven_unjar>
+          </mapping>
+          <excludes>
+            <exclude>.gitignore</exclude>
+            <exclude>.editorconfig</exclude>
+            <exclude>.mvn/**</exclude>
+            <exclude>mvnw*</exclude>
+            <exclude>etc/header.txt</exclude>
+            <exclude>**/.idea/**</exclude>
+            <exclude>LICENSE</exclude>
+            <exclude>**/*.md</exclude>
+            <exclude>**/bnd.bnd</exclude>
+            <exclude>src/test/resources/**</exclude>
+            <exclude>src/main/resources/**</exclude>
+            <exclude>build-bin/*</exclude>
+          </excludes>
+          <strictCheck>true</strictCheck>
+        </configuration>
+        <dependencies>
+          <dependency>
+            <groupId>com.mycila</groupId>
+            <artifactId>license-maven-plugin-git</artifactId>
+            <version>${license-maven-plugin.version}</version>
+          </dependency>
+        </dependencies>
+        <executions>
+          <execution>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <phase>compile</phase>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
 
     <resources>
@@ -396,82 +457,6 @@
   </build>
 
   <profiles>
-    <!-- -DskipTests ensures license libraries aren't required when packaging -->
-    <profile>
-      <id>check-license</id>
-      <activation>
-        <property>
-          <name>!skipTests</name>
-        </property>
-      </activation>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>com.mycila</groupId>
-            <artifactId>license-maven-plugin</artifactId>
-            <version>${license-maven-plugin.version}</version>
-            <configuration>
-              <header>${main.basedir}/src/etc/header.txt</header>
-              <mapping>
-                <!-- Don't use javadoc style as this makes code formatters break it by adding tags! -->
-                <java>SLASHSTAR_STYLE</java>
-                <!-- build-bin/docker -->
-                <block_on_health>SCRIPT_STYLE</block_on_health>
-                <configure_docker>SCRIPT_STYLE</configure_docker>
-                <configure_docker_push>SCRIPT_STYLE</configure_docker_push>
-                <docker_arch>SCRIPT_STYLE</docker_arch>
-                <docker_args>SCRIPT_STYLE</docker_args>
-                <docker_build>SCRIPT_STYLE</docker_build>
-                <docker_push>SCRIPT_STYLE</docker_push>
-                <!-- build-bin/git -->
-                <login_git>SCRIPT_STYLE</login_git>
-                <version_from_trigger_tag>SCRIPT_STYLE</version_from_trigger_tag>
-                <!-- build-bin/gpg -->
-                <configure_gpg>SCRIPT_STYLE</configure_gpg>
-                <!-- build-bin/maven -->
-                <maven_build_or_unjar>SCRIPT_STYLE</maven_build_or_unjar>
-                <maven_deploy>SCRIPT_STYLE</maven_deploy>
-                <maven_go_offline>SCRIPT_STYLE</maven_go_offline>
-                <maven_release>SCRIPT_STYLE</maven_release>
-                <maven_unjar>SCRIPT_STYLE</maven_unjar>
-              </mapping>
-              <excludes>
-                <exclude>.docker.env</exclude>
-                <exclude>.gitignore</exclude>
-                <exclude>.editorconfig</exclude>
-                <exclude>.mvn/**</exclude>
-                <exclude>mvnw*</exclude>
-                <exclude>etc/header.txt</exclude>
-                <exclude>**/.idea/**</exclude>
-                <exclude>LICENSE</exclude>
-                <exclude>**/*.md</exclude>
-                <exclude>**/bnd.bnd</exclude>
-                <exclude>src/test/resources/**</exclude>
-                <exclude>src/main/resources/**</exclude>
-                <exclude>build-bin/*</exclude>
-              </excludes>
-              <strictCheck>true</strictCheck>
-            </configuration>
-            <dependencies>
-              <dependency>
-                <groupId>com.mycila</groupId>
-                <artifactId>license-maven-plugin-git</artifactId>
-                <version>${license-maven-plugin.version}</version>
-              </dependency>
-            </dependencies>
-            <executions>
-              <execution>
-                <goals>
-                  <goal>check</goal>
-                </goals>
-                <phase>compile</phase>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-
     <profile>
       <id>error-prone</id>
       <activation>
