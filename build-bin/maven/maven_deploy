@@ -18,4 +18,4 @@ set -ue
 # This script deploys a SNAPSHOT or release version to Sonatype.
 #
 # Note: In CI, `configure_maven_deploy` must be called before invoking this.
-./mvnw --batch-mode -s ./.settings.xml -Prelease -nsu -DskipTests deploy
+./mvnw --batch-mode -s ./.settings.xml -Prelease -nsu -DskipTests clean deploy $@

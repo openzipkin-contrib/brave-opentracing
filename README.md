@@ -69,6 +69,7 @@ can use the old Zipkin format like this:
 sender = OkHttpSender.json("http://127.0.0.1:9411/api/v1/spans");
 spanReporter = AsyncReporter.builder(sender).build(SpanEncoder.JSON_V1);
 ```
+
 ## Artifacts
 The artifact published is `brave-opentracing` under the group ID `io.opentracing.brave`
 
