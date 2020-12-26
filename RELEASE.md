@@ -70,7 +70,7 @@ this is a normal maven project, and can be released accordingly.
 
 ```bash
 # First, set variable according to your personal credentials. These would normally be assigned as
-# org secrets: https://github.com/organizations/openzipkin/settings/secrets/actions
+# org secrets: https://github.com/organizations/openzipkin-contrib/settings/secrets/actions
 export GPG_TTY=$(tty)
 export GPG_PASSPHRASE=your_gpg_passphrase
 export SONATYPE_USER=your_sonatype_account
