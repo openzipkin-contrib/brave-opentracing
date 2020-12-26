@@ -307,6 +307,30 @@
       </plugin>
 
       <plugin>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>${maven-surefire-plugin.version}</version>
+      </plugin>
+
+      <plugin>
+        <groupId>net.orfjackal.retrolambda</groupId>
+        <artifactId>retrolambda-maven-plugin</artifactId>
+        <version>2.5.7</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>process-main</goal>
+            </goals>
+            <configuration>
+              <target>${main.java.version}</target>
+              <fork>true</fork>
+              <quiet>true</quiet>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- Language-level aside, make sure Java 9 types and methods aren't used -->
+      <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>animal-sniffer-maven-plugin</artifactId>
         <version>${animal-sniffer-maven-plugin.version}</version>
@@ -326,11 +350,6 @@
             </goals>
           </execution>
         </executions>
-      </plugin>
-
-      <plugin>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <version>${maven-surefire-plugin.version}</version>
       </plugin>
 
       <plugin>
