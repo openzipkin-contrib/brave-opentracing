@@ -14,10 +14,10 @@ on most releases, which limits the ability for this project to provide a large v
 Here are the versions currently available, noting only the latest version of
 opentracing-api is likely to have new work in this repository.
 
-Version | opentracing-api version
---------|-------------------------
-0.34.0+ | 0.32.0, 0.33.0
-0.33.13 | 0.31.0
+| Version | opentracing-api version |
+|---------|-------------------------|
+| 0.34.0+ | 0.32.0, 0.33.0          |
+| 0.33.13 | 0.31.0                  |
 
 ## Required Reading
 
